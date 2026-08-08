@@ -1,0 +1,8 @@
+{
+"name": "Privater Messenger",
+"short_name": "Messenger",
+"start_url": "./",
+"display": "standalone",
+"description": "Privater Messenger",
+"icons": []
+}
