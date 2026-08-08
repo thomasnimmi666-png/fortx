@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#000000">
-  <link rel="manifest" href="manifest.json">
 
   <title>Privater Messenger</title>
 
@@ -20,25 +19,89 @@
       color: #fff;
     }
 
-    button,
+    .screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .box {
+      width: 100%;
+      max-width: 380px;
+      background: #111;
+      border: 1px solid #292929;
+      border-radius: 20px;
+      padding: 25px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    p {
+      color: #999;
+      text-align: center;
+    }
+
     input {
-      font-family: inherit;
+      width: 100%;
+      padding: 14px;
+      margin: 7px 0;
+      background: #181818;
+      color: white;
+      border: 1px solid #333;
+      border-radius: 12px;
+      outline: none;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 12px;
+      background: white;
+      color: black;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .secondary {
+      background: #222;
+      color: white;
+      border: 1px solid #333;
+    }
+
+    .error {
+      color: #ff5c5c;
+      text-align: center;
+      min-height: 20px;
+      margin-top: 10px;
+    }
+
+    #loginScreen,
+    #registerScreen,
+    #app {
+      display: none;
     }
 
     header {
-      background: #000;
       padding: 18px;
       text-align: center;
-      font-size: 22px;
+      font-size: 21px;
       font-weight: bold;
       border-bottom: 1px solid #222;
     }
 
     #status {
-      padding: 8px;
       text-align: center;
-      background: #080808;
-      color: #aaa;
+      padding: 8px;
+      color: #999;
       font-size: 13px;
     }
 
@@ -48,56 +111,34 @@
 
     .profile {
       text-align: center;
-      padding: 20px 10px 25px;
+      padding: 20px 10px;
       border-bottom: 1px solid #222;
     }
 
     #profileImage {
-      width: 95px;
-      height: 95px;
+      width: 90px;
+      height: 90px;
       border-radius: 50%;
       object-fit: cover;
       background: #222;
       display: block;
-      margin: 0 auto 12px;
-      border: 2px solid #333;
+      margin: auto auto 12px;
     }
 
-    #username {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 12px;
-    }
-
-    .darkButton {
-      background: #1c1c1c;
-      color: white;
-      border: 1px solid #333;
-      border-radius: 20px;
+    .profileButton {
+      width: auto;
       padding: 10px 16px;
-      cursor: pointer;
-    }
-
-    #profileFile {
-      display: none;
+      margin-top: 5px;
     }
 
     #search {
-      width: 100%;
-      padding: 13px 16px;
       margin: 18px 0;
-      background: #151515;
-      color: white;
-      border: 1px solid #333;
-      border-radius: 25px;
-      font-size: 16px;
-      outline: none;
     }
 
     .friend {
       display: flex;
       align-items: center;
-      gap: 13px;
+      gap: 12px;
       padding: 13px;
       margin-bottom: 8px;
       background: #111;
@@ -106,31 +147,25 @@
       cursor: pointer;
     }
 
-    .friend:hover {
-      background: #181818;
-    }
-
-    .friendAvatar {
-      width: 50px;
-      height: 50px;
+    .avatar {
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
-      object-fit: cover;
       background: #222;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
+      font-size: 21px;
     }
 
     .friendName {
       font-weight: bold;
-      font-size: 16px;
     }
 
     .lastMessage {
-      margin-top: 4px;
       color: #888;
       font-size: 14px;
+      margin-top: 4px;
     }
 
     #chatPage {
@@ -148,16 +183,12 @@
     }
 
     #backButton {
+      width: auto;
+      margin: 0;
+      padding: 5px 10px;
       background: none;
       color: white;
-      border: none;
-      font-size: 27px;
-      cursor: pointer;
-    }
-
-    #chatTitle {
-      font-weight: bold;
-      font-size: 18px;
+      font-size: 25px;
     }
 
     #messages {
@@ -167,14 +198,13 @@
     }
 
     .message {
-      max-width: 80%;
       width: fit-content;
+      max-width: 80%;
       padding: 10px 14px;
       margin: 8px 0;
-      border-radius: 15px;
       background: #181818;
       border: 1px solid #292929;
-      word-break: break-word;
+      border-radius: 15px;
     }
 
     .mine {
@@ -187,268 +217,688 @@
       gap: 8px;
       padding: 10px;
       border-top: 1px solid #222;
-      background: #000;
     }
 
     #messageInput {
+      margin: 0;
       flex: 1;
-      padding: 12px;
-      background: #151515;
-      color: white;
-      border: 1px solid #333;
-      border-radius: 22px;
-      font-size: 16px;
-      outline: none;
     }
 
     #sendButton {
-      padding: 12px 17px;
-      border: none;
-      border-radius: 22px;
-      background: white;
-      color: black;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .sectionTitle {
-      font-size: 18px;
-      font-weight: bold;
-      margin-top: 20px;
+      width: auto;
+      margin: 0;
     }
   </style>
 </head>
 
 <body>
 
-<header>
-  🔐 Privater Messenger
-</header>
+<!-- ZUGANGSCODE -->
 
-<div id="status">
-  🔄 Verbindung wird hergestellt...
-</div>
+<div id="accessScreen" class="screen">
 
-<!-- STARTSEITE -->
+  <div class="box">
 
-<div id="homePage" class="page">
+    <h1>🔐</h1>
 
-  <div class="profile">
+    <h2 style="text-align:center;">
+      Privater Messenger
+    </h2>
 
-    <img
-      id="profileImage"
-      src=""
-      alt="Profilbild"
-    >
-
-    <div id="username">
-      Dein Name
-    </div>
-
-    <button
-      class="darkButton"
-      onclick="document.getElementById('profileFile').click()"
-    >
-      🖼️ Profilbild ändern
-    </button>
+    <p>
+      Gib den Zugangscode ein.
+    </p>
 
     <input
-      id="profileFile"
-      type="file"
-      accept="image/*"
-      onchange="changeProfileImage(event)"
+      id="accessCode"
+      type="password"
+      placeholder="Zugangscode"
     >
 
-  </div>
-
-  <div class="sectionTitle">
-    💬 Deine Freunde
-  </div>
-<div style="display:flex; gap:8px; margin-top:15px;">
-  <input
-    id="friendUsername"
-    type="text"
-    placeholder="Benutzername..."
-    style="
-      flex:1;
-      padding:12px;
-      background:#151515;
-      color:white;
-      border:1px solid #333;
-      border-radius:20px;
-      outline:none;
-    "
-  >
-
-  <button
-    onclick="addFriend()"
-    style="
-      padding:12px 16px;
-      background:white;
-      color:black;
-      border:none;
-      border-radius:20px;
-      font-weight:bold;
-    "
-  >
-    + Freund
-  </button>
-</div>
-  <input
-    id="search"
-    type="text"
-    placeholder="🔎 Freunde suchen..."
-    oninput="searchFriends()"
-  >
-
-  <div id="friends">
-
-    <div class="friend" onclick="openChat('Max')">
-      <div class="friendAvatar">👤</div>
-
-      <div>
-        <div class="friendName">Max</div>
-        <div class="lastMessage">Hey 👋</div>
-      </div>
-    </div>
-
-    <div class="friend" onclick="openChat('Anna')">
-      <div class="friendAvatar">👩</div>
-
-      <div>
-        <div class="friendName">Anna</div>
-        <div class="lastMessage">Bis später!</div>
-      </div>
-    </div>
-
-    <div class="friend" onclick="openChat('Leon')">
-      <div class="friendAvatar">👦</div>
-
-      <div>
-        <div class="friendName">Leon</div>
-        <div class="lastMessage">Alles klar 👍</div>
-      </div>
-    </div>
-
-  </div>
-
-</div>
-
-<!-- CHAT -->
-
-<div id="chatPage">
-
-  <div id="chatHeader">
-
-    <button
-      id="backButton"
-      onclick="closeChat()"
-    >
-      ←
+    <button onclick="checkAccess()">
+      Weiter
     </button>
 
-    <div id="chatTitle">
-      Chat
-    </div>
+    <div id="accessError" class="error"></div>
 
   </div>
 
-  <div id="messages"></div>
+</div>
 
-  <div id="inputArea">
+
+<!-- LOGIN -->
+
+<div id="loginScreen" class="screen">
+
+  <div class="box">
+
+    <h1>👤</h1>
+
+    <h2 style="text-align:center;">
+      Anmelden
+    </h2>
 
     <input
-      id="messageInput"
+      id="loginUsername"
       type="text"
-      placeholder="Nachricht schreiben..."
-      autocomplete="off"
+      placeholder="Benutzername"
+      autocomplete="username"
     >
 
-    <button
-      id="sendButton"
-      onclick="sendMessage()"
+    <input
+      id="loginPassword"
+      type="password"
+      placeholder="Passwort"
+      autocomplete="current-password"
     >
-      Senden
+
+    <button onclick="login()">
+      Anmelden
     </button>
+
+    <button
+      class="secondary"
+      onclick="showRegister()"
+    >
+      Neues Konto erstellen
+    </button>
+
+    <div id="loginError" class="error"></div>
 
   </div>
 
 </div>
+
+
+<!-- REGISTRIERUNG -->
+
+<div id="registerScreen" class="screen">
+
+  <div class="box">
+
+    <h1>✨</h1>
+
+    <h2 style="text-align:center;">
+      Konto erstellen
+    </h2>
+
+    <input
+      id="registerUsername"
+      type="text"
+      placeholder="Benutzername"
+      autocomplete="username"
+    >
+
+    <input
+      id="registerPassword"
+      type="password"
+      placeholder="Passwort (mind. 8 Zeichen)"
+      autocomplete="new-password"
+    >
+
+    <button onclick="register()">
+      Konto erstellen
+    </button>
+
+    <button
+      class="secondary"
+      onclick="showLogin()"
+    >
+      Zur Anmeldung
+    </button>
+
+    <div id="registerError" class="error"></div>
+
+  </div>
+
+</div>
+
+
+<!-- APP -->
+
+<div id="app">
+
+  <header>
+    🔐 Privater Messenger
+  </header>
+
+  <div id="status">
+    🔄 Verbindung wird hergestellt...
+  </div>
+
+  <div id="homePage" class="page">
+
+    <div class="profile">
+
+      <img
+        id="profileImage"
+        alt="Profilbild"
+      >
+
+      <div id="myUsername">
+        Benutzer
+      </div>
+
+      <input
+        id="profileFile"
+        type="file"
+        accept="image/*"
+        style="display:none"
+        onchange="changeProfileImage(event)"
+      >
+
+      <button
+        class="profileButton"
+        onclick="document.getElementById('profileFile').click()"
+      >
+        🖼️ Profilbild ändern
+      </button>
+
+    </div>
+
+    <input
+      id="friendUsername"
+      type="text"
+      placeholder="Benutzername für Freund hinzufügen"
+    >
+
+    <button onclick="addFriend()">
+      + Freund hinzufügen
+    </button>
+
+    <input
+      id="search"
+      type="text"
+      placeholder="🔎 Freunde suchen..."
+      oninput="searchFriends()"
+    >
+
+    <div id="friends">
+
+      <div
+        class="friend"
+        onclick="openChat('Max')"
+      >
+        <div class="avatar">👤</div>
+
+        <div>
+          <div class="friendName">Max</div>
+          <div class="lastMessage">Testfreund</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- CHAT -->
+
+  <div id="chatPage">
+
+    <div id="chatHeader">
+
+      <button
+        id="backButton"
+        onclick="closeChat()"
+      >
+        ←
+      </button>
+
+      <strong id="chatTitle">
+        Chat
+      </strong>
+
+    </div>
+
+    <div id="messages"></div>
+
+    <div id="inputArea">
+
+      <input
+        id="messageInput"
+        type="text"
+        placeholder="Nachricht schreiben..."
+      >
+
+      <button
+        id="sendButton"
+        onclick="sendMessage()"
+      >
+        Senden
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
 
 <script>
 
+  let socket;
   let currentFriend = null;
 
-  const socket = new WebSocket(
-    "wss://fortx.onrender.com"
-  );
 
-  socket.onopen = () => {
+  function connectSocket() {
 
-    document.getElementById(
-      "status"
-    ).textContent =
-      "🟢 Server verbunden";
+    socket = new WebSocket(
+      "wss://fortx.onrender.com"
+    );
 
-  };
+    socket.onopen = () => {
 
-  socket.onmessage = (event) => {
+      document.getElementById(
+        "status"
+      ).textContent =
+        "🟢 Server verbunden";
 
-    try {
+    };
 
-      const data =
-        JSON.parse(event.data);
 
-      if (
-        data.type === "system"
-      ) {
+    socket.onmessage = (event) => {
 
-        document.getElementById(
-          "status"
-        ).textContent =
-          data.text;
+      try {
 
-        return;
+        const data =
+          JSON.parse(event.data);
+
+
+        if (
+          data.type === "error"
+        ) {
+
+          alert(data.text);
+          return;
+
+        }
+
+
+        if (
+          data.type === "registered"
+        ) {
+
+          localStorage.setItem(
+            "username",
+            data.username
+          );
+
+          showApp();
+          return;
+
+        }
+
+
+        if (
+          data.type === "loggedIn"
+        ) {
+
+          localStorage.setItem(
+            "username",
+            data.username
+          );
+
+          showApp();
+          return;
+
+        }
+
+
+        if (
+          data.type === "friendRequest"
+        ) {
+
+          alert(
+            "Neue Freundschaftsanfrage von @" +
+            data.from
+          );
+
+          return;
+
+        }
+
+
+        if (
+          data.type === "requestSent"
+        ) {
+
+          alert(
+            "Anfrage an @" +
+            data.to +
+            " gesendet."
+          );
+
+          return;
+
+        }
+
+
+        if (
+          data.type === "message"
+        ) {
+
+          if (
+            data.from === currentFriend
+          ) {
+
+            addMessage(
+              data.text,
+              false
+            );
+
+          }
+
+        }
+
+      } catch (error) {
+
+        console.log(error);
 
       }
 
-      if (
-        data.type === "message" &&
-        data.to === currentFriend
-      ) {
+    };
 
-        addMessage(
-          data.text,
-          false
-        );
 
-      }
+    socket.onerror = () => {
 
-    } catch (error) {
+      document.getElementById(
+        "status"
+      ).textContent =
+        "🔴 Server nicht erreichbar";
 
-      console.log(error);
+    };
+
+
+    socket.onclose = () => {
+
+      document.getElementById(
+        "status"
+      ).textContent =
+        "🔴 Verbindung getrennt";
+
+    };
+
+  }
+
+
+  function checkAccess() {
+
+    const code =
+      document.getElementById(
+        "accessCode"
+      ).value;
+
+    /*
+      Der Zugangscode wird absichtlich
+      NICHT im HTML gespeichert.
+
+      Die echte Prüfung passiert später
+      über den Server.
+    */
+
+    if (!code) {
+
+      document.getElementById(
+        "accessError"
+      ).textContent =
+        "Bitte Zugangscode eingeben.";
+
+      return;
 
     }
 
-  };
-
-  socket.onerror = () => {
-
-    document.getElementById(
-      "status"
-    ).textContent =
-      "🔴 Server nicht erreichbar";
-
-  };
-
-  socket.onclose = () => {
+    sessionStorage.setItem(
+      "accessCode",
+      code
+    );
 
     document.getElementById(
-      "status"
-    ).textContent =
-      "🔴 Verbindung getrennt";
+      "accessScreen"
+    ).style.display =
+      "none";
 
-  };
+    document.getElementById(
+      "loginScreen"
+    ).style.display =
+      "flex";
+
+  }
+
+
+  function showRegister() {
+
+    document.getElementById(
+      "loginScreen"
+    ).style.display =
+      "none";
+
+    document.getElementById(
+      "registerScreen"
+    ).style.display =
+      "flex";
+
+  }
+
+
+  function showLogin() {
+
+    document.getElementById(
+      "registerScreen"
+    ).style.display =
+      "none";
+
+    document.getElementById(
+      "loginScreen"
+    ).style.display =
+      "flex";
+
+  }
+
+
+  function register() {
+
+    const username =
+      document.getElementById(
+        "registerUsername"
+      ).value.trim();
+
+    const password =
+      document.getElementById(
+        "registerPassword"
+      ).value;
+
+    const accessCode =
+      sessionStorage.getItem(
+        "accessCode"
+      );
+
+
+    if (!username || !password) {
+
+      document.getElementById(
+        "registerError"
+      ).textContent =
+        "Bitte alles ausfüllen.";
+
+      return;
+
+    }
+
+
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
+
+      document.getElementById(
+        "registerError"
+      ).textContent =
+        "Server noch nicht verbunden.";
+
+      return;
+
+    }
+
+
+    socket.send(
+      JSON.stringify({
+
+        type:
+          "register",
+
+        username:
+          username,
+
+        password:
+          password,
+
+        accessCode:
+          accessCode
+
+      })
+    );
+
+  }
+
+
+  function login() {
+
+    const username =
+      document.getElementById(
+        "loginUsername"
+      ).value.trim();
+
+    const password =
+      document.getElementById(
+        "loginPassword"
+      ).value;
+
+
+    if (!username || !password) {
+
+      document.getElementById(
+        "loginError"
+      ).textContent =
+        "Bitte Benutzername und Passwort eingeben.";
+
+      return;
+
+    }
+
+
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
+
+      document.getElementById(
+        "loginError"
+      ).textContent =
+        "Server noch nicht verbunden.";
+
+      return;
+
+    }
+
+
+    socket.send(
+      JSON.stringify({
+
+        type:
+          "login",
+
+        username:
+          username,
+
+        password:
+          password
+
+      })
+    );
+
+  }
+
+
+  function showApp() {
+
+    document.getElementById(
+      "loginScreen"
+    ).style.display =
+      "none";
+
+    document.getElementById(
+      "registerScreen"
+    ).style.display =
+      "none";
+
+    document.getElementById(
+      "app"
+    ).style.display =
+      "block";
+
+    document.getElementById(
+      "myUsername"
+    ).textContent =
+      "@" +
+      localStorage.getItem(
+        "username"
+      );
+
+  }
+
+
+  function addFriend() {
+
+    const input =
+      document.getElementById(
+        "friendUsername"
+      );
+
+    const username =
+      input.value.trim();
+
+    if (!username) {
+
+      alert(
+        "Bitte einen Benutzernamen eingeben."
+      );
+
+      return;
+
+    }
+
+
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
+
+      alert(
+        "Keine Serververbindung."
+      );
+
+      return;
+
+    }
+
+
+    socket.send(
+      JSON.stringify({
+
+        type:
+          "addFriend",
+
+        username:
+          username
+
+      })
+    );
+
+
+    input.value = "";
+
+  }
 
 
   function openChat(friend) {
@@ -469,7 +919,7 @@
     document.getElementById(
       "chatTitle"
     ).textContent =
-      friend;
+      "@" + friend;
 
     document.getElementById(
       "messages"
@@ -493,6 +943,62 @@
       "homePage"
     ).style.display =
       "block";
+
+  }
+
+
+  function sendMessage() {
+
+    const input =
+      document.getElementById(
+        "messageInput"
+      );
+
+    const text =
+      input.value.trim();
+
+
+    if (!text) {
+      return;
+    }
+
+
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
+
+      alert(
+        "Keine Serververbindung."
+      );
+
+      return;
+
+    }
+
+
+    socket.send(
+      JSON.stringify({
+
+        type:
+          "message",
+
+        to:
+          currentFriend,
+
+        text:
+          text
+
+      })
+    );
+
+
+    addMessage(
+      text,
+      true
+    );
+
+    input.value = "";
 
   }
 
@@ -532,60 +1038,6 @@
   }
 
 
-  function sendMessage() {
-
-    const input =
-      document.getElementById(
-        "messageInput"
-      );
-
-    const text =
-      input.value.trim();
-
-    if (!text) {
-      return;
-    }
-
-    if (
-      socket.readyState !==
-      WebSocket.OPEN
-    ) {
-
-      document.getElementById(
-        "status"
-      ).textContent =
-        "🔴 Keine Serververbindung";
-
-      return;
-
-    }
-
-    socket.send(
-      JSON.stringify({
-
-        type:
-          "message",
-
-        to:
-          currentFriend,
-
-        text:
-          text
-
-      })
-    );
-
-    addMessage(
-      text,
-      true
-    );
-
-    input.value =
-      "";
-
-  }
-
-
   function searchFriends() {
 
     const search =
@@ -595,36 +1047,33 @@
       .value
       .toLowerCase();
 
-    const friends =
-      document.querySelectorAll(
+    document
+      .querySelectorAll(
         ".friend"
+      )
+      .forEach(
+        friend => {
+
+          const name =
+            friend
+              .querySelector(
+                ".friendName"
+              )
+              .textContent
+              .toLowerCase();
+
+          friend.style.display =
+            name.includes(search)
+              ? "flex"
+              : "none";
+
+        }
       );
-
-    friends.forEach(
-      function(friend) {
-
-        const name =
-          friend
-            .querySelector(
-              ".friendName"
-            )
-            .textContent
-            .toLowerCase();
-
-        friend.style.display =
-          name.includes(search)
-            ? "flex"
-            : "none";
-
-      }
-    );
 
   }
 
 
-  function changeProfileImage(
-    event
-  ) {
+  function changeProfileImage(event) {
 
     const file =
       event.target.files[0];
@@ -658,6 +1107,27 @@
   }
 
 
+  document
+    .getElementById(
+      "messageInput"
+    )
+    .addEventListener(
+      "keydown",
+      event => {
+
+        if (
+          event.key ===
+          "Enter"
+        ) {
+
+          sendMessage();
+
+        }
+
+      }
+    );
+
+
   const savedImage =
     localStorage.getItem(
       "profileImage"
@@ -673,48 +1143,8 @@
   }
 
 
-  document
-    .getElementById(
-      "messageInput"
-    )
-    .addEventListener(
-      "keydown",
-      function(event) {
+  connectSocket();
 
-        if (
-          event.key ===
-          "Enter"
-        ) {
-
-          sendMessage();
-
-        }
-
-      }
-    );
-function addFriend() {
-  const input = document.getElementById("friendUsername");
-  const username = input.value.trim().toLowerCase();
-
-  if (!username) {
-    alert("Bitte einen Benutzernamen eingeben.");
-    return;
-  }
-
-  if (socket.readyState !== WebSocket.OPEN) {
-    alert("Keine Serververbindung.");
-    return;
-  }
-
-  socket.send(JSON.stringify({
-    type: "addFriend",
-    username: username
-  }));
-
-  input.value = "";
-
-  alert("Freundschaftsanfrage gesendet.");
-}
 </script>
 
 </body>
