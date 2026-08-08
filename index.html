@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privater Messenger</title>
+
+<style>
+body {
+margin: 0;
+font-family: Arial, sans-serif;
+background: #f2f2f2;
+}
+
+.app {
+max-width: 500px;
+height: 100vh;
+margin: auto;
+background: white;
+display: flex;
+flex-direction: column;
+}
+
+header {
+background: #222;
+color: white;
+padding: 18px;
+font-size: 20px;
+font-weight: bold;
+}
+
+.messages {
+flex: 1;
+padding: 15px;
+overflow-y: auto;
+}
+
+.message {
+background: #e5e5e5;
+padding: 10px 14px;
+border-radius: 12px;
+margin-bottom: 10px;
+width: fit-content;
+max-width: 75%;
+}
+
+.mine {
+background: #222;
+color: white;
+margin-left: auto;
+}
+
+.input-area {
+display: flex;
+padding: 10px;
+border-top: 1px solid #ddd;
+}
+
+input {
+flex: 1;
+padding: 12px;
+border: 1px solid #ccc;
+border-radius: 20px;
+font-size: 16px;
+}
+
+button {
+margin-left: 8px;
+padding: 12px 18px;
+border: none;
+border-radius: 20px;
+background: #222;
+color: white;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header>
+🔐 Privater Messenger
+</header>
+
+<div class="messages" id="messages">
+<div class="message">
+Willkommen bei unserem Messenger!
+</div>
+</div>
+
+<div class="input-area">
+<input
+id="messageInput"
+type="text"
+placeholder="Nachricht schreiben..."
+>
+
+<button onclick="sendMessage()">
+Senden
+</button>
+</div>
+
+</div>
+
+<script>
+function sendMessage() {
+const input = document.getElementById("messageInput");
+const messages = document.getElementById("messages");
+
+if (input.value.trim() === "") {
+return;
+}
+
+const message = document.createElement("div");
+message.className = "message mine";
+message.textContent = input.value;
+
+messages.appendChild(message);
+
+input.value = "";
+messages.scrollTop = messages.scrollHeight;
+}
+</script>
+
+</body>
+</html>
