@@ -19,6 +19,7 @@ const GROUP_ADMINS = [
 ];
 
 const MESSAGE_LIFETIME = 24 * 60 * 60 * 1000;
+const RESET_LIFETIME = 15 * 60 * 1000;
 
 function send(socket, data) {
   if (socket && socket.readyState === WebSocket.OPEN) {
@@ -55,6 +56,10 @@ function verifyPassword(password, stored) {
   }
 }
 
+function createResetToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
 async function initDatabase() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -75,6 +80,15 @@ async function initDatabase() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      token_hash TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used BOOLEAN DEFAULT FALSE
+    )
+  `);
+
   console.log("🗄️ Datenbank bereit");
 }
 
@@ -83,6 +97,14 @@ async function cleanOldGroupMessages() {
     DELETE FROM messages
     WHERE is_group = TRUE
     AND created_at < NOW() - INTERVAL '24 hours'
+  `);
+}
+
+async function cleanExpiredResetTokens() {
+  await pool.query(`
+    DELETE FROM password_resets
+    WHERE expires_at < NOW()
+       OR used = TRUE
   `);
 }
 
@@ -279,6 +301,270 @@ wss.on("connection", (socket) => {
       }
 
       /*
+       * PASSWORT VERGESSEN
+       */
+
+      if (data.type === "forgotPassword") {
+        const username =
+          String(data.username || "")
+            .trim()
+            .toLowerCase();
+
+        if (!username) {
+          send(socket, {
+            type: "error",
+            text:
+              "Bitte Benutzernamen eingeben."
+          });
+          return;
+        }
+
+        const user =
+          await pool.query(
+            `
+            SELECT username
+            FROM users
+            WHERE username = $1
+            `,
+            [username]
+          );
+
+        if (user.rows.length === 0) {
+          send(socket, {
+            type: "forgotPasswordSent",
+            text:
+              "Wenn das Konto existiert, wurde eine Anfrage an die Admins gesendet."
+          });
+          return;
+        }
+
+        const requestId =
+          crypto.randomBytes(16).toString("hex");
+
+        const requestMessage = {
+          type: "passwordResetRequest",
+          requestId,
+          username,
+          time: Date.now()
+        };
+
+        for (const client of wss.clients) {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            client.username &&
+            GROUP_ADMINS.includes(
+              client.username
+            )
+          ) {
+            send(
+              client,
+              requestMessage
+            );
+          }
+        }
+
+        send(socket, {
+          type: "forgotPasswordSent",
+          text:
+            "Die Anfrage wurde an die Admins gesendet."
+        });
+
+        console.log(
+          `🔑 Passwort-Reset angefragt: ${username}`
+        );
+
+        return;
+      }
+
+      /*
+       * RESET-LINK FÜR BENUTZER ERSTELLEN
+       */
+
+      if (data.type === "createPasswordReset") {
+        const admin =
+          socket.username;
+
+        if (
+          !admin ||
+          !GROUP_ADMINS.includes(admin)
+        ) {
+          send(socket, {
+            type: "error",
+            text:
+              "Nur Admins dürfen Reset-Links erstellen."
+          });
+          return;
+        }
+
+        const username =
+          String(data.username || "")
+            .trim()
+            .toLowerCase();
+
+        if (!username) {
+          return;
+        }
+
+        const user =
+          await pool.query(
+            `
+            SELECT username
+            FROM users
+            WHERE username = $1
+            `,
+            [username]
+          );
+
+        if (user.rows.length === 0) {
+          send(socket, {
+            type: "error",
+            text:
+              "Benutzer nicht gefunden."
+          });
+          return;
+        }
+
+        await pool.query(`
+          DELETE FROM password_resets
+          WHERE username = $1
+        `, [username]);
+
+        const token =
+          createResetToken();
+
+        const tokenHash =
+          crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
+
+        await pool.query(
+          `
+          INSERT INTO password_resets
+          (token_hash, username, expires_at)
+          VALUES (
+            $1,
+            $2,
+            NOW() + INTERVAL '15 minutes'
+          )
+          `,
+          [
+            tokenHash,
+            username
+          ]
+        );
+
+        const baseUrl =
+          process.env.APP_URL ||
+          "https://fortx.onrender.com";
+
+        const resetUrl =
+          `${baseUrl}/?reset=${token}`;
+
+        send(socket, {
+          type:
+            "passwordResetLink",
+          username,
+          resetUrl,
+          expiresIn:
+            RESET_LIFETIME
+        });
+
+        console.log(
+          `🔗 Reset-Link erstellt für ${username} durch ${admin}`
+        );
+
+        return;
+      }
+
+      /*
+       * PASSWORT ZURÜCKSETZEN
+       */
+
+      if (data.type === "resetPassword") {
+        const token =
+          String(data.token || "");
+
+        const newPassword =
+          String(data.password || "");
+
+        if (
+          !token ||
+          newPassword.length < 8
+        ) {
+          send(socket, {
+            type: "error",
+            text:
+              "Das neue Passwort muss mindestens 8 Zeichen haben."
+          });
+          return;
+        }
+
+        const tokenHash =
+          crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
+
+        const result =
+          await pool.query(
+            `
+            SELECT username
+            FROM password_resets
+            WHERE token_hash = $1
+              AND used = FALSE
+              AND expires_at > NOW()
+            `,
+            [tokenHash]
+          );
+
+        if (result.rows.length === 0) {
+          send(socket, {
+            type: "error",
+            text:
+              "Der Reset-Link ist ungültig oder abgelaufen."
+          });
+          return;
+        }
+
+        const username =
+          result.rows[0].username;
+
+        await pool.query(
+          `
+          UPDATE users
+          SET password_hash = $1
+          WHERE username = $2
+          `,
+          [
+            hashPassword(newPassword),
+            username
+          ]
+        );
+
+        await pool.query(
+          `
+          UPDATE password_resets
+          SET used = TRUE
+          WHERE token_hash = $1
+          `,
+          [tokenHash]
+        );
+
+        send(socket, {
+          type:
+            "passwordResetSuccess",
+          username
+        });
+
+        console.log(
+          `🔐 Passwort geändert: ${username}`
+        );
+
+        return;
+      }
+
+      /*
        * GRUPPENCHAT LADEN
        */
 
@@ -336,7 +622,6 @@ wss.on("connection", (socket) => {
             text:
               "Du darfst im Gruppenchat nur lesen."
           });
-
           return;
         }
 
@@ -441,8 +726,7 @@ wss.on("connection", (socket) => {
 
         for (const client of wss.clients) {
           if (
-            client.readyState ===
-              WebSocket.OPEN &&
+            client.readyState === WebSocket.OPEN &&
             client.username === to
           ) {
             send(client, {
@@ -480,11 +764,6 @@ wss.on("connection", (socket) => {
   });
 });
 
-/*
- * Alte Gruppenchat-Nachrichten
- * regelmäßig löschen.
- */
-
 setInterval(() => {
   cleanOldGroupMessages()
     .catch(error => {
@@ -493,12 +772,15 @@ setInterval(() => {
         error.message
       );
     });
-}, 10 * 60 * 1000);
 
-/*
- * Datenbank starten,
- * danach Server starten.
- */
+  cleanExpiredResetTokens()
+    .catch(error => {
+      console.log(
+        "❌ Reset-Aufräumfehler:",
+        error.message
+      );
+    });
+}, 10 * 60 * 1000);
 
 initDatabase()
   .then(() => {
