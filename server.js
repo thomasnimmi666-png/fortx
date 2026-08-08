@@ -11,7 +11,16 @@ res.writeHead(200, {
 "Content-Type": "text/plain; charset=utf-8"
 });
 
-res.end("Privater Messenger Server läuft! 🔐");
+if (req.url === "/health") {
+  res.writeHead(200, {
+    ...corsHeaders,
+    "Content-Type": "application/json"
+  });
+
+  res.end(JSON.stringify({ status: "ok" }));
+  return;
+}
+  res.end("Privater Messenger Server läuft! 🔐");
 });
 
 const PORT = process.env.PORT || 3000;
