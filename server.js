@@ -1,4 +1,6 @@
 const http = require("http");
+const fs = require("fs");
+const path = require("path");
 const WebSocket = require("ws");
 const crypto = require("crypto");
 const { Pool } = require("pg");
@@ -119,6 +121,14 @@ async function broadcastGroup(data) {
   }
 }
 
+/*
+ * HTTP SERVER
+ *
+ * /              -> index.html
+ * /index.html    -> index.html
+ * /health        -> Serverstatus
+ */
+
 const server = http.createServer((req, res) => {
   res.setHeader(
     "Access-Control-Allow-Origin",
@@ -139,19 +149,67 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  res.writeHead(200, {
+  if (
+    req.url === "/" ||
+    req.url === "/index.html"
+  ) {
+    const filePath = path.join(
+      __dirname,
+      "index.html"
+    );
+
+    fs.readFile(
+      filePath,
+      (error, content) => {
+        if (error) {
+          console.error(
+            "❌ index.html konnte nicht geladen werden:",
+            error
+          );
+
+          res.writeHead(500, {
+            "Content-Type":
+              "text/plain; charset=utf-8"
+          });
+
+          res.end(
+            "Fehler beim Laden der App."
+          );
+
+          return;
+        }
+
+        res.writeHead(200, {
+          "Content-Type":
+            "text/html; charset=utf-8"
+        });
+
+        res.end(content);
+      }
+    );
+
+    return;
+  }
+
+  res.writeHead(404, {
     "Content-Type":
       "text/plain; charset=utf-8"
   });
 
   res.end(
-    "Privater Messenger Server läuft! 🔐"
+    "404 - Nicht gefunden"
   );
 });
+
+
+/*
+ * WEBSOCKET SERVER
+ */
 
 const wss = new WebSocket.Server({
   server
 });
+
 
 wss.on("connection", (socket) => {
   console.log("📱 Gerät verbunden");
@@ -160,6 +218,7 @@ wss.on("connection", (socket) => {
     try {
       const data =
         JSON.parse(raw.toString());
+
 
       /*
        * REGISTRIERUNG
@@ -183,6 +242,7 @@ wss.on("connection", (socket) => {
             text:
               "Server-Zugangscode fehlt."
           });
+
           return;
         }
 
@@ -192,6 +252,7 @@ wss.on("connection", (socket) => {
             text:
               "Falscher Zugangscode."
           });
+
           return;
         }
 
@@ -204,6 +265,7 @@ wss.on("connection", (socket) => {
             text:
               "Benutzername mindestens 3 Zeichen und Passwort mindestens 8 Zeichen."
           });
+
           return;
         }
 
@@ -219,6 +281,7 @@ wss.on("connection", (socket) => {
             text:
               "Benutzername ist bereits vergeben."
           });
+
           return;
         }
 
@@ -247,6 +310,7 @@ wss.on("connection", (socket) => {
 
         return;
       }
+
 
       /*
        * LOGIN
@@ -283,6 +347,7 @@ wss.on("connection", (socket) => {
             text:
               "Benutzername oder Passwort falsch."
           });
+
           return;
         }
 
@@ -300,6 +365,7 @@ wss.on("connection", (socket) => {
         return;
       }
 
+
       /*
        * PASSWORT VERGESSEN
        */
@@ -316,6 +382,7 @@ wss.on("connection", (socket) => {
             text:
               "Bitte Benutzernamen eingeben."
           });
+
           return;
         }
 
@@ -335,6 +402,7 @@ wss.on("connection", (socket) => {
             text:
               "Wenn das Konto existiert, wurde eine Anfrage an die Admins gesendet."
           });
+
           return;
         }
 
@@ -376,6 +444,7 @@ wss.on("connection", (socket) => {
         return;
       }
 
+
       /*
        * RESET-LINK FÜR BENUTZER ERSTELLEN
        */
@@ -393,6 +462,7 @@ wss.on("connection", (socket) => {
             text:
               "Nur Admins dürfen Reset-Links erstellen."
           });
+
           return;
         }
 
@@ -421,6 +491,7 @@ wss.on("connection", (socket) => {
             text:
               "Benutzer nicht gefunden."
           });
+
           return;
         }
 
@@ -477,6 +548,7 @@ wss.on("connection", (socket) => {
         return;
       }
 
+
       /*
        * PASSWORT ZURÜCKSETZEN
        */
@@ -497,6 +569,7 @@ wss.on("connection", (socket) => {
             text:
               "Das neue Passwort muss mindestens 8 Zeichen haben."
           });
+
           return;
         }
 
@@ -524,6 +597,7 @@ wss.on("connection", (socket) => {
             text:
               "Der Reset-Link ist ungültig oder abgelaufen."
           });
+
           return;
         }
 
@@ -564,6 +638,7 @@ wss.on("connection", (socket) => {
         return;
       }
 
+
       /*
        * GRUPPENCHAT LADEN
        */
@@ -597,6 +672,7 @@ wss.on("connection", (socket) => {
         return;
       }
 
+
       /*
        * GRUPPENCHAT NACHRICHT
        */
@@ -622,6 +698,7 @@ wss.on("connection", (socket) => {
             text:
               "Du darfst im Gruppenchat nur lesen."
           });
+
           return;
         }
 
@@ -665,6 +742,7 @@ wss.on("connection", (socket) => {
         return;
       }
 
+
       /*
        * PRIVATE NACHRICHT
        */
@@ -705,6 +783,7 @@ wss.on("connection", (socket) => {
             text:
               "Benutzer nicht gefunden."
           });
+
           return;
         }
 
@@ -755,6 +834,7 @@ wss.on("connection", (socket) => {
     }
   });
 
+
   socket.on("close", () => {
     if (socket.username) {
       console.log(
@@ -764,7 +844,13 @@ wss.on("connection", (socket) => {
   });
 });
 
+
+/*
+ * AUTOMATISCHES AUFRÄUMEN
+ */
+
 setInterval(() => {
+
   cleanOldGroupMessages()
     .catch(error => {
       console.log(
@@ -780,25 +866,40 @@ setInterval(() => {
         error.message
       );
     });
+
 }, 10 * 60 * 1000);
+
+
+/*
+ * DATENBANK STARTEN
+ * UND SERVER STARTEN
+ */
 
 initDatabase()
   .then(() => {
+
     server.listen(
       PORT,
       "0.0.0.0",
       () => {
+
         console.log(
           `🚀 Server läuft auf Port ${PORT}`
         );
+
       }
+
     );
+
   })
+
   .catch(error => {
+
     console.error(
       "❌ Datenbankfehler:",
       error
     );
 
     process.exit(1);
+
   });
