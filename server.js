@@ -1,27 +1,10 @@
 const http = require("http");
-const path = require("path");
-const fs = require("fs");
-const crypto = require("crypto");
 const WebSocket = require("ws");
-const webpush = require("web-push");
+const crypto = require("crypto");
 const { Pool } = require("pg");
 
 const PORT = process.env.PORT || 3000;
-const ACCESS_CODE = process.env.ACCESS_CODE || "";
-
-const APP_URL =
-  process.env.APP_URL ||
-  "https://fortx.onrender.com";
-
-const VAPID_PUBLIC_KEY =
-  process.env.VAPID_PUBLIC_KEY || "";
-
-const VAPID_PRIVATE_KEY =
-  process.env.VAPID_PRIVATE_KEY || "";
-
-const VAPID_EMAIL =
-  process.env.VAPID_EMAIL ||
-  "mailto:admin@example.com";
+const ACCESS_CODE = process.env.ACCESS_CODE;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -35,16 +18,8 @@ const GROUP_ADMINS = [
   "thcliquide"
 ];
 
-const server = http.createServer();
-const wss = new WebSocket.Server({ server });
-
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    VAPID_EMAIL,
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-  );
-}
+const GROUP_MESSAGE_LIFETIME_HOURS = 24;
+const RESET_LIFETIME_MINUTES = 15;
 
 function send(socket, data) {
   if (
@@ -55,16 +30,8 @@ function send(socket, data) {
   }
 }
 
-function normalizeUsername(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
 function hashPassword(password) {
-  const salt = crypto
-    .randomBytes(16)
-    .toString("hex");
+  const salt = crypto.randomBytes(16).toString("hex");
 
   const hash = crypto
     .scryptSync(password, salt, 64)
@@ -82,10 +49,7 @@ function verifyPassword(password, stored) {
     }
 
     const salt = parts[0];
-    const originalHash = Buffer.from(
-      parts[1],
-      "hex"
-    );
+    const originalHash = Buffer.from(parts[1], "hex");
 
     const hash = crypto.scryptSync(
       password,
@@ -103,21 +67,12 @@ function verifyPassword(password, stored) {
 }
 
 function createToken() {
-  return crypto
-    .randomBytes(32)
-    .toString("hex");
-}
-
-function hashToken(token) {
-  return crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
+  return crypto.randomBytes(32).toString("hex");
 }
 
 function isAdmin(username) {
   return GROUP_ADMINS.includes(
-    normalizeUsername(username)
+    String(username || "").toLowerCase()
   );
 }
 
@@ -127,6 +82,15 @@ async function initDatabase() {
       username TEXT PRIMARY KEY,
       password_hash TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS friends (
+      username TEXT NOT NULL,
+      friend_username TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (username, friend_username)
     )
   `);
 
@@ -142,15 +106,6 @@ async function initDatabase() {
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS friends (
-      username TEXT NOT NULL,
-      friend TEXT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY(username, friend)
-    )
-  `);
-
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS password_resets (
       token_hash TEXT PRIMARY KEY,
       username TEXT NOT NULL,
@@ -159,24 +114,15 @@ async function initDatabase() {
     )
   `);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS push_subscriptions (
-      id SERIAL PRIMARY KEY,
-      username TEXT NOT NULL,
-      endpoint TEXT NOT NULL UNIQUE,
-      subscription JSONB NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
   console.log("🗄️ Datenbank bereit");
 }
 
-async function cleanOldData() {
+async function cleanOldMessages() {
   await pool.query(`
     DELETE FROM messages
     WHERE is_group = TRUE
-    AND created_at < NOW() - INTERVAL '24 hours'
+    AND created_at < NOW() -
+      INTERVAL '${GROUP_MESSAGE_LIFETIME_HOURS} hours'
   `);
 
   await pool.query(`
@@ -197,366 +143,104 @@ async function broadcastGroup(data) {
   }
 }
 
-async function sendPushToUser(
-  username,
-  title,
-  body,
-  url = "/"
-) {
-  if (
-    !VAPID_PUBLIC_KEY ||
-    !VAPID_PRIVATE_KEY
-  ) {
+async function sendFriends(socket) {
+  if (!socket.username) {
     return;
   }
 
   const result = await pool.query(
     `
-    SELECT endpoint, subscription
-    FROM push_subscriptions
+    SELECT friend_username
+    FROM friends
     WHERE username = $1
+    ORDER BY friend_username ASC
     `,
-    [username]
+    [socket.username]
   );
 
-  const payload = JSON.stringify({
-    title,
-    body,
-    url
+  send(socket, {
+    type: "friends",
+    friends: result.rows.map(
+      row => row.friend_username
+    )
   });
+}
 
-  for (const row of result.rows) {
-    try {
-      await webpush.sendNotification(
-        row.subscription,
-        payload
+const server = http.createServer(
+  async (req, res) => {
+    res.setHeader(
+      "Access-Control-Allow-Origin",
+      "*"
+    );
+
+    if (req.url === "/health") {
+      res.writeHead(200, {
+        "Content-Type":
+          "application/json; charset=utf-8"
+      });
+
+      res.end(
+        JSON.stringify({
+          status: "ok"
+        })
       );
-    } catch (error) {
-      if (
-        error.statusCode === 404 ||
-        error.statusCode === 410
-      ) {
-        await pool.query(
-          `
-          DELETE FROM push_subscriptions
-          WHERE endpoint = $1
-          `,
-          [row.endpoint]
-        );
-      } else {
-        console.log(
-          "❌ Push-Fehler:",
-          error.message
-        );
-      }
+
+      return;
     }
-  }
-}
-
-function getIndexHtml() {
-  return fs.readFileSync(
-    path.join(__dirname, "index.html"),
-    "utf8"
-  );
-}
-
-function sendIndex(res) {
-  try {
-    const html = getIndexHtml();
 
     res.writeHead(200, {
-      "Content-Type":
-        "text/html; charset=utf-8",
-      "Cache-Control":
-        "no-cache, no-store, must-revalidate"
-    });
-
-    res.end(html);
-  } catch (error) {
-    console.error(error);
-
-    res.writeHead(500, {
       "Content-Type":
         "text/plain; charset=utf-8"
     });
 
     res.end(
-      "index.html konnte nicht geladen werden."
-    );
-  }
-}
-
-function sendJson(res, status, data) {
-  res.writeHead(status, {
-    "Content-Type":
-      "application/json; charset=utf-8"
-  });
-
-  res.end(JSON.stringify(data));
-}
-
-const serviceWorker = `
-self.addEventListener("install", event => {
-  self.skipWaiting();
-});
-
-self.addEventListener("activate", event => {
-  event.waitUntil(
-    self.clients.claim()
-  );
-});
-
-self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") {
-    return;
-  }
-
-  event.respondWith(
-    fetch(event.request).catch(() =>
-      caches.match(event.request)
-    )
-  );
-});
-
-self.addEventListener("push", event => {
-  let data = {};
-
-  try {
-    data = event.data
-      ? event.data.json()
-      : {};
-  } catch {}
-
-  const title =
-    data.title ||
-    "Privater Messenger";
-
-  const options = {
-    body:
-      data.body ||
-      "Neue Nachricht",
-    icon: "/icon.svg",
-    badge: "/icon.svg",
-    data: {
-      url:
-        data.url ||
-        "/"
-    },
-    vibrate: [
-      200,
-      100,
-      200
-    ]
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(
-      title,
-      options
-    )
-  );
-});
-
-self.addEventListener(
-  "notificationclick",
-  event => {
-    event.notification.close();
-
-    const url =
-      event.notification.data &&
-      event.notification.data.url
-        ? event.notification.data.url
-        : "/";
-
-    event.waitUntil(
-      clients.matchAll({
-        type: "window",
-        includeUncontrolled: true
-      }).then(list => {
-        for (const client of list) {
-          if ("focus" in client) {
-            client.navigate(url);
-            return client.focus();
-          }
-        }
-
-        if (clients.openWindow) {
-          return clients.openWindow(url);
-        }
-      })
+      "Privater Messenger Server läuft! 🔐"
     );
   }
 );
-`;
 
-const manifest = {
-  name: "Privater Messenger",
-  short_name: "Messenger",
-  start_url: "/",
-  display: "standalone",
-  background_color: "#000000",
-  theme_color: "#000000",
-  description:
-    "Privater Messenger",
-  icons: [
-    {
-      src: "/icon.svg",
-      sizes: "any",
-      type: "image/svg+xml",
-      purpose: "any maskable"
-    }
-  ]
-};
-
-const iconSvg = `
-<svg xmlns="http://www.w3.org/2000/svg"
-width="512" height="512"
-viewBox="0 0 512 512">
-<rect width="512" height="512"
-rx="110" fill="#000"/>
-<circle cx="256" cy="220"
-r="130" fill="#fff"/>
-<path d="M150 350 L135 405 L205 365"
-fill="#fff"/>
-<circle cx="205" cy="220"
-r="22" fill="#000"/>
-<circle cx="256" cy="220"
-r="22" fill="#000"/>
-<circle cx="307" cy="220"
-r="22" fill="#000"/>
-</svg>
-`;
-
-server.on("request", async (req, res) => {
-  try {
-    const url =
-      new URL(
-        req.url,
-        `http://${req.headers.host}`
-      );
-
-    if (
-      url.pathname === "/health"
-    ) {
-      sendJson(res, 200, {
-        status: "ok"
-      });
-      return;
-    }
-
-    if (
-      url.pathname === "/manifest.json"
-    ) {
-      sendJson(
-        res,
-        200,
-        manifest
-      );
-      return;
-    }
-
-    if (
-      url.pathname === "/sw.js"
-    ) {
-      res.writeHead(200, {
-        "Content-Type":
-          "application/javascript",
-        "Cache-Control":
-          "no-cache"
-      });
-
-      res.end(serviceWorker);
-      return;
-    }
-
-    if (
-      url.pathname === "/icon.svg"
-    ) {
-      res.writeHead(200, {
-        "Content-Type":
-          "image/svg+xml",
-        "Cache-Control":
-          "public, max-age=86400"
-      });
-
-      res.end(iconSvg);
-      return;
-    }
-
-    if (
-      url.pathname === "/api/vapid-public-key"
-    ) {
-      sendJson(res, 200, {
-        publicKey:
-          VAPID_PUBLIC_KEY || null
-      });
-      return;
-    }
-
-    if (
-      url.pathname === "/"
-    ) {
-      sendIndex(res);
-      return;
-    }
-
-    sendIndex(res);
-  } catch (error) {
-    console.error(error);
-
-    res.writeHead(500);
-    res.end("Serverfehler");
-  }
+const wss = new WebSocket.Server({
+  server
 });
 
 wss.on("connection", socket => {
-  console.log(
-    "📱 Gerät verbunden"
-  );
+  console.log("📱 Gerät verbunden");
 
   socket.on("message", async raw => {
     try {
-      const data =
-        JSON.parse(
-          raw.toString()
-        );
+      const data = JSON.parse(
+        raw.toString()
+      );
 
       /*
        * REGISTRIEREN
        */
 
-      if (
-        data.type ===
-        "register"
-      ) {
-        const username =
-          normalizeUsername(
-            data.username
-          );
+      if (data.type === "register") {
+        const username = String(
+          data.username || ""
+        )
+          .trim()
+          .toLowerCase();
 
-        const password =
-          String(
-            data.password || ""
-          );
+        const password = String(
+          data.password || ""
+        );
 
-        const accessCode =
-          String(
-            data.accessCode || ""
-          );
+        const accessCode = String(
+          data.accessCode || ""
+        );
 
         if (!ACCESS_CODE) {
           send(socket, {
             type: "error",
             text:
-              "Server-Zugangscode ist nicht eingerichtet."
+              "ACCESS_CODE ist auf Render nicht eingerichtet."
           });
           return;
         }
 
-        if (
-          accessCode !==
-          ACCESS_CODE
-        ) {
+        if (accessCode !== ACCESS_CODE) {
           send(socket, {
             type: "error",
             text:
@@ -577,22 +261,7 @@ wss.on("connection", socket => {
           return;
         }
 
-        if (
-          !/^[a-z0-9_.-]+$/.test(
-            username
-          )
-        ) {
-          send(socket, {
-            type: "error",
-            text:
-              "Benutzername darf nur Buchstaben, Zahlen, Punkt, Bindestrich und Unterstrich enthalten."
-          });
-          return;
-        }
-
-        if (
-          password.length < 8
-        ) {
+        if (password.length < 8) {
           send(socket, {
             type: "error",
             text:
@@ -601,19 +270,16 @@ wss.on("connection", socket => {
           return;
         }
 
-        const existing =
-          await pool.query(
-            `
-            SELECT username
-            FROM users
-            WHERE username = $1
-            `,
-            [username]
-          );
+        const existing = await pool.query(
+          `
+          SELECT username
+          FROM users
+          WHERE username = $1
+          `,
+          [username]
+        );
 
-        if (
-          existing.rows.length
-        ) {
+        if (existing.rows.length > 0) {
           send(socket, {
             type: "error",
             text:
@@ -634,14 +300,18 @@ wss.on("connection", socket => {
           ]
         );
 
-        socket.username =
-          username;
+        socket.username = username;
 
         send(socket, {
-          type:
-            "registered",
+          type: "registered",
           username
         });
+
+        await sendFriends(socket);
+
+        console.log(
+          `👤 Registriert: ${username}`
+        );
 
         return;
       }
@@ -650,38 +320,31 @@ wss.on("connection", socket => {
        * LOGIN
        */
 
-      if (
-        data.type ===
-        "login"
-      ) {
-        const username =
-          normalizeUsername(
-            data.username
-          );
+      if (data.type === "login") {
+        const username = String(
+          data.username || ""
+        )
+          .trim()
+          .toLowerCase();
 
-        const password =
-          String(
-            data.password || ""
-          );
+        const password = String(
+          data.password || ""
+        );
 
-        const result =
-          await pool.query(
-            `
-            SELECT
-              username,
-              password_hash
-            FROM users
-            WHERE username = $1
-            `,
-            [username]
-          );
+        const result = await pool.query(
+          `
+          SELECT username, password_hash
+          FROM users
+          WHERE username = $1
+          `,
+          [username]
+        );
 
         if (
-          !result.rows.length ||
+          result.rows.length === 0 ||
           !verifyPassword(
             password,
-            result.rows[0]
-              .password_hash
+            result.rows[0].password_hash
           )
         ) {
           send(socket, {
@@ -692,14 +355,18 @@ wss.on("connection", socket => {
           return;
         }
 
-        socket.username =
-          username;
+        socket.username = username;
 
         send(socket, {
-          type:
-            "loggedIn",
+          type: "loggedIn",
           username
         });
+
+        await sendFriends(socket);
+
+        console.log(
+          `🔓 Login: ${username}`
+        );
 
         return;
       }
@@ -708,43 +375,43 @@ wss.on("connection", socket => {
        * FREUND HINZUFÜGEN
        */
 
-      if (
-        data.type ===
-        "addFriend"
-      ) {
+      if (data.type === "addFriend") {
         if (!socket.username) {
           return;
         }
 
-        const friend =
-          normalizeUsername(
-            data.username
-          );
+        const friendUsername = String(
+          data.username || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        if (!friendUsername) {
+          return;
+        }
 
         if (
-          !friend ||
-          friend ===
-            socket.username
+          friendUsername ===
+          socket.username
         ) {
           send(socket, {
             type: "error",
             text:
-              "Ungültiger Benutzer."
+              "Du kannst dich nicht selbst hinzufügen."
           });
           return;
         }
 
-        const exists =
-          await pool.query(
-            `
-            SELECT username
-            FROM users
-            WHERE username = $1
-            `,
-            [friend]
-          );
+        const user = await pool.query(
+          `
+          SELECT username
+          FROM users
+          WHERE username = $1
+          `,
+          [friendUsername]
+        );
 
-        if (!exists.rows.length) {
+        if (user.rows.length === 0) {
           send(socket, {
             type: "error",
             text:
@@ -756,51 +423,48 @@ wss.on("connection", socket => {
         await pool.query(
           `
           INSERT INTO friends
-          (username, friend)
+          (username, friend_username)
           VALUES ($1, $2)
           ON CONFLICT DO NOTHING
           `,
           [
             socket.username,
-            friend
+            friendUsername
           ]
         );
 
         await pool.query(
           `
           INSERT INTO friends
-          (username, friend)
+          (username, friend_username)
           VALUES ($1, $2)
           ON CONFLICT DO NOTHING
           `,
           [
-            friend,
+            friendUsername,
             socket.username
           ]
         );
 
         send(socket, {
-          type:
-            "friendAdded",
-          username:
-            friend
+          type: "requestSent",
+          to: friendUsername
         });
 
-        for (
-          const client of wss.clients
-        ) {
+        await sendFriends(socket);
+
+        for (const client of wss.clients) {
           if (
-            client.readyState ===
-              WebSocket.OPEN &&
-            client.username ===
-              friend
+            client.readyState === WebSocket.OPEN &&
+            client.username === friendUsername
           ) {
             send(client, {
-              type:
-                "friendAdded",
+              type: "friendAdded",
               username:
                 socket.username
             });
+
+            await sendFriends(client);
           }
         }
 
@@ -811,33 +475,179 @@ wss.on("connection", socket => {
        * FREUNDE LADEN
        */
 
+      if (data.type === "getFriends") {
+        await sendFriends(socket);
+        return;
+      }
+
+      /*
+       * PRIVATE CHAT LADEN
+       */
+
+      if (data.type === "getPrivateMessages") {
+        if (!socket.username) {
+          return;
+        }
+
+        const friend = String(
+          data.username || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        if (!friend) {
+          return;
+        }
+
+        const result = await pool.query(
+          `
+          SELECT
+            sender,
+            receiver,
+            text,
+            EXTRACT(
+              EPOCH FROM created_at
+            ) * 1000 AS time
+          FROM messages
+          WHERE is_group = FALSE
+          AND (
+            (sender = $1 AND receiver = $2)
+            OR
+            (sender = $2 AND receiver = $1)
+          )
+          ORDER BY created_at ASC
+          `,
+          [
+            socket.username,
+            friend
+          ]
+        );
+
+        send(socket, {
+          type: "privateMessages",
+          username: friend,
+          messages: result.rows.map(
+            message => ({
+              from: message.sender,
+              to: message.receiver,
+              text: message.text,
+              time: Number(
+                message.time
+              )
+            })
+          )
+        });
+
+        return;
+      }
+
+      /*
+       * GRUPPENCHAT LADEN
+       */
+
       if (
         data.type ===
-        "getFriends"
+        "getGroupMessages"
       ) {
         if (!socket.username) {
           return;
         }
 
-        const result =
-          await pool.query(
-            `
-            SELECT friend
-            FROM friends
-            WHERE username = $1
-            ORDER BY friend ASC
-            `,
-            [socket.username]
-          );
+        await cleanOldMessages();
+
+        const result = await pool.query(
+          `
+          SELECT
+            sender AS username,
+            text,
+            EXTRACT(
+              EPOCH FROM created_at
+            ) * 1000 AS time
+          FROM messages
+          WHERE is_group = TRUE
+          ORDER BY created_at ASC
+          `
+        );
 
         send(socket, {
-          type:
-            "friends",
-          friends:
-            result.rows.map(
-              row =>
-                row.friend
+          type: "groupMessages",
+          messages: result.rows.map(
+            message => ({
+              username:
+                message.username,
+              text:
+                message.text,
+              time:
+                Number(message.time)
+            })
+          )
+        });
+
+        return;
+      }
+
+      /*
+       * GRUPPENNACHRICHT
+       */
+
+      if (
+        data.type ===
+        "groupMessage"
+      ) {
+        if (!socket.username) {
+          return;
+        }
+
+        if (!isAdmin(socket.username)) {
+          send(socket, {
+            type: "error",
+            text:
+              "Du darfst im Gruppenchat nur lesen."
+          });
+          return;
+        }
+
+        const text = String(
+          data.text || ""
+        ).trim();
+
+        if (!text) {
+          return;
+        }
+
+        const result = await pool.query(
+          `
+          INSERT INTO messages
+          (sender, text, is_group)
+          VALUES ($1, $2, TRUE)
+          RETURNING
+            sender,
+            text,
+            EXTRACT(
+              EPOCH FROM created_at
+            ) * 1000 AS time
+          `,
+          [
+            socket.username,
+            text
+          ]
+        );
+
+        const message = {
+          username:
+            result.rows[0].sender,
+          text:
+            result.rows[0].text,
+          time:
+            Number(
+              result.rows[0].time
             )
+        };
+
+        await broadcastGroup({
+          type:
+            "groupMessage",
+          message
         });
 
         return;
@@ -847,51 +657,34 @@ wss.on("connection", socket => {
        * PRIVATE NACHRICHT
        */
 
-      if (
-        data.type ===
-        "message"
-      ) {
+      if (data.type === "message") {
         const from =
           socket.username;
 
-        const to =
-          normalizeUsername(
-            data.to
-          );
+        const to = String(
+          data.to || ""
+        )
+          .trim()
+          .toLowerCase();
 
-        const text =
-          String(
-            data.text || ""
-          ).trim();
+        const text = String(
+          data.text || ""
+        ).trim();
 
-        if (
-          !from ||
-          !to ||
-          !text
-        ) {
+        if (!from || !to || !text) {
           return;
         }
 
-        if (text.length > 5000) {
-          send(socket, {
-            type: "error",
-            text:
-              "Nachricht ist zu lang."
-          });
-          return;
-        }
+        const target = await pool.query(
+          `
+          SELECT username
+          FROM users
+          WHERE username = $1
+          `,
+          [to]
+        );
 
-        const target =
-          await pool.query(
-            `
-            SELECT username
-            FROM users
-            WHERE username = $1
-            `,
-            [to]
-          );
-
-        if (!target.rows.length) {
+        if (target.rows.length === 0) {
           send(socket, {
             type: "error",
             text:
@@ -914,242 +707,24 @@ wss.on("connection", socket => {
         );
 
         const message = {
+          type: "message",
           from,
           to,
           text,
-          time:
-            Date.now()
+          time: Date.now()
         };
 
-        send(socket, {
-          type:
-            "message",
-          ...message
-        });
+        send(socket, message);
 
-        let online =
-          false;
-
-        for (
-          const client of wss.clients
-        ) {
+        for (const client of wss.clients) {
           if (
             client.readyState ===
               WebSocket.OPEN &&
-            client.username ===
-              to
+            client.username === to
           ) {
-            online = true;
-
-            send(client, {
-              type:
-                "message",
-              ...message
-            });
+            send(client, message);
           }
         }
-
-        if (!online) {
-          await sendPushToUser(
-            to,
-            `Neue Nachricht von @${from}`,
-            text,
-            "/"
-          );
-        }
-
-        return;
-      }
-
-      /*
-       * PRIVATE CHAT LADEN
-       */
-
-      if (
-        data.type ===
-        "getPrivateMessages"
-      ) {
-        if (!socket.username) {
-          return;
-        }
-
-        const friend =
-          normalizeUsername(
-            data.friend
-          );
-
-        const result =
-          await pool.query(
-            `
-            SELECT
-              sender,
-              receiver,
-              text,
-              EXTRACT(
-                EPOCH FROM created_at
-              ) * 1000 AS time
-            FROM messages
-            WHERE is_group = FALSE
-              AND (
-                (sender = $1 AND receiver = $2)
-                OR
-                (sender = $2 AND receiver = $1)
-              )
-            ORDER BY created_at ASC
-            `,
-            [
-              socket.username,
-              friend
-            ]
-          );
-
-        send(socket, {
-          type:
-            "privateMessages",
-          friend,
-          messages:
-            result.rows.map(
-              row => ({
-                from:
-                  row.sender,
-                to:
-                  row.receiver,
-                text:
-                  row.text,
-                time:
-                  Number(
-                    row.time
-                  )
-              })
-            )
-        });
-
-        return;
-      }
-
-      /*
-       * GRUPPENCHAT LADEN
-       */
-
-      if (
-        data.type ===
-        "getGroupMessages"
-      ) {
-        if (!socket.username) {
-          return;
-        }
-
-        await cleanOldData();
-
-        const result =
-          await pool.query(
-            `
-            SELECT
-              sender AS username,
-              text,
-              EXTRACT(
-                EPOCH FROM created_at
-              ) * 1000 AS time
-            FROM messages
-            WHERE is_group = TRUE
-            ORDER BY created_at ASC
-            `
-          );
-
-        send(socket, {
-          type:
-            "groupMessages",
-          messages:
-            result.rows.map(
-              row => ({
-                username:
-                  row.username,
-                text:
-                  row.text,
-                time:
-                  Number(
-                    row.time
-                  )
-              })
-            )
-        });
-
-        return;
-      }
-
-      /*
-       * GRUPPENCHAT SENDEN
-       */
-
-      if (
-        data.type ===
-        "groupMessage"
-      ) {
-        const username =
-          socket.username;
-
-        if (!username) {
-          return;
-        }
-
-        if (
-          !isAdmin(username)
-        ) {
-          send(socket, {
-            type: "error",
-            text:
-              "Du darfst im Gruppenchat nur lesen."
-          });
-          return;
-        }
-
-        const text =
-          String(
-            data.text || ""
-          ).trim();
-
-        if (!text) {
-          return;
-        }
-
-        const result =
-          await pool.query(
-            `
-            INSERT INTO messages
-            (sender, text, is_group)
-            VALUES ($1, $2, TRUE)
-            RETURNING
-              sender,
-              text,
-              EXTRACT(
-                EPOCH FROM created_at
-              ) * 1000 AS time
-            `,
-            [
-              username,
-              text
-            ]
-          );
-
-        const message = {
-          username:
-            result.rows[0]
-              .sender,
-          text:
-            result.rows[0]
-              .text,
-          time:
-            Number(
-              result.rows[0]
-                .time
-            )
-        };
-
-        await broadcastGroup({
-          type:
-            "groupMessage",
-          message
-        });
 
         return;
       }
@@ -1162,56 +737,62 @@ wss.on("connection", socket => {
         data.type ===
         "forgotPassword"
       ) {
-        const username =
-          normalizeUsername(
-            data.username
-          );
+        const username = String(
+          data.username || ""
+        )
+          .trim()
+          .toLowerCase();
 
-        const user =
-          await pool.query(
-            `
-            SELECT username
-            FROM users
-            WHERE username = $1
-            `,
-            [username]
-          );
+        if (!username) {
+          send(socket, {
+            type: "error",
+            text:
+              "Bitte Benutzernamen eingeben."
+          });
+          return;
+        }
+
+        const user = await pool.query(
+          `
+          SELECT username
+          FROM users
+          WHERE username = $1
+          `,
+          [username]
+        );
+
+        if (user.rows.length === 0) {
+          send(socket, {
+            type:
+              "forgotPasswordSent",
+            text:
+              "Wenn das Konto existiert, wurde eine Anfrage an die Admins gesendet."
+          });
+          return;
+        }
+
+        for (const client of wss.clients) {
+          if (
+            client.readyState ===
+              WebSocket.OPEN &&
+            client.username &&
+            isAdmin(client.username)
+          ) {
+            send(client, {
+              type:
+                "passwordResetRequest",
+              username,
+              time: Date.now()
+            });
+          }
+        }
 
         send(socket, {
           type:
             "forgotPasswordSent",
           text:
-            "Wenn das Konto existiert, wurde eine Anfrage an die Admins gesendet."
+            "Die Anfrage wurde an die Admins gesendet."
         });
-
-        if (!user.rows.length) {
-          return;
-        }
-
-        const requestId =
-          createToken();
-
-        for (
-          const client of wss.clients
-        ) {
-          if (
-            client.readyState ===
-              WebSocket.OPEN &&
-            client.username &&
-            isAdmin(
-              client.username
-            )
-          ) {
-            send(client, {
-              type:
-                "passwordResetRequest",
-              requestId,
-              username,
-              time:
-                Date.now()
-            });
-          }
-        }
 
         return;
       }
@@ -1224,12 +805,7 @@ wss.on("connection", socket => {
         data.type ===
         "createPasswordReset"
       ) {
-        if (
-          !socket.username ||
-          !isAdmin(
-            socket.username
-          )
-        ) {
+        if (!isAdmin(socket.username)) {
           send(socket, {
             type: "error",
             text:
@@ -1238,22 +814,22 @@ wss.on("connection", socket => {
           return;
         }
 
-        const username =
-          normalizeUsername(
-            data.username
-          );
+        const username = String(
+          data.username || ""
+        )
+          .trim()
+          .toLowerCase();
 
-        const user =
-          await pool.query(
-            `
-            SELECT username
-            FROM users
-            WHERE username = $1
-            `,
-            [username]
-          );
+        const user = await pool.query(
+          `
+          SELECT username
+          FROM users
+          WHERE username = $1
+          `,
+          [username]
+        );
 
-        if (!user.rows.length) {
+        if (user.rows.length === 0) {
           send(socket, {
             type: "error",
             text:
@@ -1270,8 +846,13 @@ wss.on("connection", socket => {
           [username]
         );
 
-        const token =
-          createToken();
+        const token = createToken();
+
+        const tokenHash =
+          crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
 
         await pool.query(
           `
@@ -1284,25 +865,32 @@ wss.on("connection", socket => {
           VALUES (
             $1,
             $2,
-            NOW() + INTERVAL '15 minutes'
+            NOW() +
+              INTERVAL '${RESET_LIFETIME_MINUTES} minutes'
           )
           `,
           [
-            hashToken(token),
+            tokenHash,
             username
           ]
         );
 
+        const baseUrl =
+          process.env.APP_URL ||
+          "https://fortx.onrender.com";
+
         const resetUrl =
-          `${APP_URL}/?reset=${encodeURIComponent(
-            token
-          )}`;
+          `${baseUrl}/?reset=${token}`;
 
         send(socket, {
           type:
             "passwordResetLink",
           username,
-          resetUrl
+          resetUrl,
+          expiresIn:
+            RESET_LIFETIME_MINUTES *
+            60 *
+            1000
         });
 
         return;
@@ -1316,17 +904,16 @@ wss.on("connection", socket => {
         data.type ===
         "resetPassword"
       ) {
-        const token =
-          String(
-            data.token || ""
-          );
+        const token = String(
+          data.token || ""
+        );
 
-        const password =
-          String(
-            data.password || ""
-          );
+        const password = String(
+          data.password || ""
+        );
 
         if (
+          !token ||
           password.length < 8
         ) {
           send(socket, {
@@ -1337,30 +924,34 @@ wss.on("connection", socket => {
           return;
         }
 
-        const result =
-          await pool.query(
-            `
-            SELECT username
-            FROM password_resets
-            WHERE token_hash = $1
-              AND used = FALSE
-              AND expires_at > NOW()
-            `,
-            [hashToken(token)]
-          );
+        const tokenHash =
+          crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
 
-        if (!result.rows.length) {
+        const result = await pool.query(
+          `
+          SELECT username
+          FROM password_resets
+          WHERE token_hash = $1
+          AND used = FALSE
+          AND expires_at > NOW()
+          `,
+          [tokenHash]
+        );
+
+        if (result.rows.length === 0) {
           send(socket, {
             type: "error",
             text:
-              "Reset-Link ungültig oder abgelaufen."
+              "Der Reset-Link ist ungültig oder abgelaufen."
           });
           return;
         }
 
         const username =
-          result.rows[0]
-            .username;
+          result.rows[0].username;
 
         await pool.query(
           `
@@ -1369,9 +960,7 @@ wss.on("connection", socket => {
           WHERE username = $2
           `,
           [
-            hashPassword(
-              password
-            ),
+            hashPassword(password),
             username
           ]
         );
@@ -1382,7 +971,7 @@ wss.on("connection", socket => {
           SET used = TRUE
           WHERE token_hash = $1
           `,
-          [hashToken(token)]
+          [tokenHash]
         );
 
         send(socket, {
@@ -1394,103 +983,16 @@ wss.on("connection", socket => {
         return;
       }
 
-      /*
-       * PUSH REGISTRIEREN
-       */
-
-      if (
-        data.type ===
-        "subscribePush"
-      ) {
-        if (!socket.username) {
-          return;
-        }
-
-        const subscription =
-          data.subscription;
-
-        if (
-          !subscription ||
-          !subscription.endpoint
-        ) {
-          return;
-        }
-
-        await pool.query(
-          `
-          INSERT INTO push_subscriptions
-          (
-            username,
-            endpoint,
-            subscription
-          )
-          VALUES ($1, $2, $3)
-          ON CONFLICT(endpoint)
-          DO UPDATE SET
-            username = EXCLUDED.username,
-            subscription = EXCLUDED.subscription
-          `,
-          [
-            socket.username,
-            subscription.endpoint,
-            JSON.stringify(
-              subscription
-            )
-          ]
-        );
-
-        send(socket, {
-          type:
-            "pushSubscribed"
-        });
-
-        return;
-      }
-
-      /*
-       * PUSH ABBESTELLEN
-       */
-
-      if (
-        data.type ===
-        "unsubscribePush"
-      ) {
-        if (!socket.username) {
-          return;
-        }
-
-        const endpoint =
-          String(
-            data.endpoint || ""
-          );
-
-        if (endpoint) {
-          await pool.query(
-            `
-            DELETE FROM push_subscriptions
-            WHERE endpoint = $1
-              AND username = $2
-            `,
-            [
-              endpoint,
-              socket.username
-            ]
-          );
-        }
-
-        return;
-      }
-
     } catch (error) {
       console.error(
-        "❌ Fehler:",
+        "❌ Serverfehler:",
         error
       );
 
       send(socket, {
         type: "error",
         text:
-          "Serverfehler."
+          "Serverfehler. Bitte später erneut versuchen."
       });
     }
   });
@@ -1505,13 +1007,12 @@ wss.on("connection", socket => {
 });
 
 setInterval(() => {
-  cleanOldData().catch(
-    error =>
-      console.log(
-        "❌ Aufräumfehler:",
-        error.message
-      )
-  );
+  cleanOldMessages().catch(error => {
+    console.error(
+      "❌ Aufräumfehler:",
+      error.message
+    );
+  });
 }, 10 * 60 * 1000);
 
 initDatabase()
