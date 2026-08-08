@@ -135,7 +135,8 @@
       margin: 18px 0;
     }
 
-    .friend {
+    .friend,
+    .groupChatCard {
       display: flex;
       align-items: center;
       gap: 12px;
@@ -147,25 +148,84 @@
       cursor: pointer;
     }
 
+    .groupChatCard {
+      padding: 15px;
+      border: 1px solid #333;
+      background: linear-gradient(
+        135deg,
+        #111,
+        #171717
+      );
+    }
+
+    .groupChatCard:hover,
+    .friend:hover {
+      background: #181818;
+    }
+
+    .groupIcon,
     .avatar {
-      width: 48px;
-      height: 48px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
       background: #222;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 21px;
+      flex-shrink: 0;
     }
 
-    .friendName {
+    .groupIcon {
+      font-size: 24px;
+    }
+
+    .groupInfo {
+      min-width: 0;
+    }
+
+    .friendName,
+    .animatedName {
       font-weight: bold;
+    }
+
+    .animatedName {
+      animation: nameGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes nameGlow {
+      0%, 100% {
+        text-shadow: 0 0 3px #fff;
+      }
+
+      50% {
+        text-shadow: 0 0 12px #fff;
+      }
+    }
+
+    .adminName {
+      font-weight: bold;
+      animation: adminGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes adminGlow {
+      0%, 100% {
+        text-shadow: 0 0 4px #fff;
+      }
+
+      50% {
+        text-shadow: 0 0 16px #fff;
+      }
     }
 
     .lastMessage {
       color: #888;
       font-size: 14px;
       margin-top: 4px;
+    }
+
+    .groupInfo .lastMessage {
+      color: #777;
     }
 
     #chatPage {
@@ -191,6 +251,10 @@
       font-size: 25px;
     }
 
+    #chatTitle {
+      font-size: 18px;
+    }
+
     #messages {
       flex: 1;
       overflow-y: auto;
@@ -212,6 +276,36 @@
       background: #252525;
     }
 
+    .groupMessage {
+      width: 100%;
+      max-width: 100%;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 14px;
+      padding: 11px;
+      margin-bottom: 8px;
+    }
+
+    .messageAuthor {
+      font-size: 13px;
+      margin-bottom: 5px;
+      color: #aaa;
+    }
+
+    .messageText {
+      font-size: 15px;
+      word-break: break-word;
+    }
+
+    .readOnlyNotice {
+      display: none;
+      padding: 10px;
+      text-align: center;
+      color: #888;
+      font-size: 13px;
+      border-top: 1px solid #222;
+    }
+
     #inputArea {
       display: flex;
       gap: 8px;
@@ -228,17 +322,17 @@
       width: auto;
       margin: 0;
     }
+
+    #groupInputArea {
+      display: none;
+    }
   </style>
 </head>
 
 <body>
 
-<!-- ZUGANGSCODE -->
-
 <div id="accessScreen" class="screen">
-
   <div class="box">
-
     <h1>🔐</h1>
 
     <h2 style="text-align:center;">
@@ -260,16 +354,11 @@
     </button>
 
     <div id="accessError" class="error"></div>
-
   </div>
-
 </div>
 
 
-<!-- LOGIN -->
-
 <div id="loginScreen" class="screen">
-
   <div class="box">
 
     <h1>👤</h1>
@@ -306,14 +395,10 @@
     <div id="loginError" class="error"></div>
 
   </div>
-
 </div>
 
 
-<!-- REGISTRIERUNG -->
-
 <div id="registerScreen" class="screen">
-
   <div class="box">
 
     <h1>✨</h1>
@@ -350,11 +435,8 @@
     <div id="registerError" class="error"></div>
 
   </div>
-
 </div>
 
-
-<!-- APP -->
 
 <div id="app">
 
@@ -413,18 +495,56 @@
       oninput="searchFriends()"
     >
 
+
+    <!-- ALLGEMEIN -->
+
+    <div
+      class="groupChatCard"
+      onclick="openGroupChat()"
+    >
+
+      <div class="groupIcon">
+        🌐
+      </div>
+
+      <div class="groupInfo">
+
+        <div class="animatedName">
+          Allgemein
+        </div>
+
+        <div class="lastMessage">
+          Großer Gruppenchat · Nachrichten nach 24h gelöscht
+        </div>
+
+      </div>
+
+    </div>
+
+
     <div id="friends">
 
       <div
         class="friend"
         onclick="openChat('Max')"
       >
-        <div class="avatar">👤</div>
+
+        <div class="avatar">
+          👤
+        </div>
 
         <div>
-          <div class="friendName">Max</div>
-          <div class="lastMessage">Testfreund</div>
+
+          <div class="friendName">
+            Max
+          </div>
+
+          <div class="lastMessage">
+            Testfreund
+          </div>
+
         </div>
+
       </div>
 
     </div>
@@ -453,6 +573,9 @@
 
     <div id="messages"></div>
 
+
+    <!-- PRIVATER CHAT -->
+
     <div id="inputArea">
 
       <input
@@ -470,6 +593,39 @@
 
     </div>
 
+
+    <!-- NUR LESEN -->
+
+    <div
+      id="readOnlyNotice"
+      class="readOnlyNotice"
+    >
+      👀 Du kannst hier nur lesen.
+    </div>
+
+
+    <!-- GRUPPENCHAT -->
+
+    <div
+      id="groupInputArea"
+      class="inputArea"
+    >
+
+      <input
+        id="groupMessageInput"
+        type="text"
+        placeholder="In Allgemein schreiben..."
+      >
+
+      <button
+        id="groupSendButton"
+        onclick="sendGroupMessage()"
+      >
+        Senden
+      </button>
+
+    </div>
+
   </div>
 
 </div>
@@ -479,6 +635,13 @@
 
   let socket;
   let currentFriend = null;
+  let groupChatOpen = false;
+
+
+  const GROUP_ADMINS = [
+    "saftpresse040",
+    "thcliquide"
+  ];
 
 
   function connectSocket() {
@@ -486,6 +649,7 @@
     socket = new WebSocket(
       "wss://fortx.onrender.com"
     );
+
 
     socket.onopen = () => {
 
@@ -505,9 +669,7 @@
           JSON.parse(event.data);
 
 
-        if (
-          data.type === "error"
-        ) {
+        if (data.type === "error") {
 
           alert(data.text);
           return;
@@ -515,9 +677,7 @@
         }
 
 
-        if (
-          data.type === "registered"
-        ) {
+        if (data.type === "registered") {
 
           localStorage.setItem(
             "username",
@@ -530,9 +690,7 @@
         }
 
 
-        if (
-          data.type === "loggedIn"
-        ) {
+        if (data.type === "loggedIn") {
 
           localStorage.setItem(
             "username",
@@ -545,9 +703,7 @@
         }
 
 
-        if (
-          data.type === "friendRequest"
-        ) {
+        if (data.type === "friendRequest") {
 
           alert(
             "Neue Freundschaftsanfrage von @" +
@@ -559,9 +715,7 @@
         }
 
 
-        if (
-          data.type === "requestSent"
-        ) {
+        if (data.type === "requestSent") {
 
           alert(
             "Anfrage an @" +
@@ -574,12 +728,11 @@
         }
 
 
-        if (
-          data.type === "message"
-        ) {
+        if (data.type === "message") {
 
           if (
-            data.from === currentFriend
+            data.from === currentFriend &&
+            !groupChatOpen
           ) {
 
             addMessage(
@@ -588,6 +741,34 @@
             );
 
           }
+
+          return;
+
+        }
+
+
+        if (data.type === "groupMessages") {
+
+          showGroupMessages(
+            data.messages || []
+          );
+
+          return;
+
+        }
+
+
+        if (data.type === "groupMessage") {
+
+          if (groupChatOpen) {
+
+            addGroupMessage(
+              data.message
+            );
+
+          }
+
+          return;
 
         }
 
@@ -627,15 +808,8 @@
     const code =
       document.getElementById(
         "accessCode"
-      ).value;
+      ).value.trim();
 
-    /*
-      Der Zugangscode wird absichtlich
-      NICHT im HTML gespeichert.
-
-      Die echte Prüfung passiert später
-      über den Server.
-    */
 
     if (!code) {
 
@@ -648,10 +822,12 @@
 
     }
 
+
     sessionStorage.setItem(
       "accessCode",
       code
     );
+
 
     document.getElementById(
       "accessScreen"
@@ -703,10 +879,12 @@
         "registerUsername"
       ).value.trim();
 
+
     const password =
       document.getElementById(
         "registerPassword"
       ).value;
+
 
     const accessCode =
       sessionStorage.getItem(
@@ -744,17 +922,13 @@
     socket.send(
       JSON.stringify({
 
-        type:
-          "register",
+        type: "register",
 
-        username:
-          username,
+        username,
 
-        password:
-          password,
+        password,
 
-        accessCode:
-          accessCode
+        accessCode
 
       })
     );
@@ -768,6 +942,7 @@
       document.getElementById(
         "loginUsername"
       ).value.trim();
+
 
     const password =
       document.getElementById(
@@ -805,14 +980,11 @@
     socket.send(
       JSON.stringify({
 
-        type:
-          "login",
+        type: "login",
 
-        username:
-          username,
+        username,
 
-        password:
-          password
+        password
 
       })
     );
@@ -837,13 +1009,67 @@
     ).style.display =
       "block";
 
-    document.getElementById(
-      "myUsername"
-    ).textContent =
-      "@" +
+
+    const username =
       localStorage.getItem(
         "username"
       );
+
+
+    document.getElementById(
+      "myUsername"
+    ).textContent =
+      getDisplayName(username);
+
+  }
+
+
+  function getDisplayName(username) {
+
+    if (!username) {
+      return "Benutzer";
+    }
+
+
+    const lower =
+      username.toLowerCase();
+
+
+    if (
+      lower ===
+      "saftpresse040"
+    ) {
+
+      return "Saftpresse040🧃";
+
+    }
+
+
+    if (
+      lower ===
+      "thcliquide"
+    ) {
+
+      return "Thcliquide🧃";
+
+    }
+
+
+    return "@" + username;
+
+  }
+
+
+  function isGroupAdmin(username) {
+
+    if (!username) {
+      return false;
+    }
+
+
+    return GROUP_ADMINS.includes(
+      username.toLowerCase()
+    );
 
   }
 
@@ -855,8 +1081,10 @@
         "friendUsername"
       );
 
+
     const username =
       input.value.trim();
+
 
     if (!username) {
 
@@ -886,11 +1114,9 @@
     socket.send(
       JSON.stringify({
 
-        type:
-          "addFriend",
+        type: "addFriend",
 
-        username:
-          username
+        username
 
       })
     );
@@ -903,41 +1129,155 @@
 
   function openChat(friend) {
 
-    currentFriend =
-      friend;
+    groupChatOpen = false;
+
+    currentFriend = friend;
+
 
     document.getElementById(
       "homePage"
     ).style.display =
       "none";
 
+
     document.getElementById(
       "chatPage"
     ).style.display =
       "flex";
 
+
     document.getElementById(
       "chatTitle"
     ).textContent =
-      "@" + friend;
+      getDisplayName(friend);
+
 
     document.getElementById(
       "messages"
     ).innerHTML =
       "";
 
+
+    document.getElementById(
+      "inputArea"
+    ).style.display =
+      "flex";
+
+
+    document.getElementById(
+      "groupInputArea"
+    ).style.display =
+      "none";
+
+
+    document.getElementById(
+      "readOnlyNotice"
+    ).style.display =
+      "none";
+
+  }
+
+
+  function openGroupChat() {
+
+    groupChatOpen = true;
+
+    currentFriend = null;
+
+
+    document.getElementById(
+      "homePage"
+    ).style.display =
+      "none";
+
+
+    document.getElementById(
+      "chatPage"
+    ).style.display =
+      "flex";
+
+
+    document.getElementById(
+      "chatTitle"
+    ).textContent =
+      "🌐 Allgemein";
+
+
+    document.getElementById(
+      "messages"
+    ).innerHTML =
+      "";
+
+
+    document.getElementById(
+      "inputArea"
+    ).style.display =
+      "none";
+
+
+    const username =
+      localStorage.getItem(
+        "username"
+      );
+
+
+    if (isGroupAdmin(username)) {
+
+      document.getElementById(
+        "groupInputArea"
+      ).style.display =
+        "flex";
+
+
+      document.getElementById(
+        "readOnlyNotice"
+      ).style.display =
+        "none";
+
+    } else {
+
+      document.getElementById(
+        "groupInputArea"
+      ).style.display =
+        "none";
+
+
+      document.getElementById(
+        "readOnlyNotice"
+      ).style.display =
+        "block";
+
+    }
+
+
+    if (
+      socket.readyState ===
+      WebSocket.OPEN
+    ) {
+
+      socket.send(
+        JSON.stringify({
+          type:
+            "getGroupMessages"
+        })
+      );
+
+    }
+
   }
 
 
   function closeChat() {
 
-    currentFriend =
-      null;
+    currentFriend = null;
+    groupChatOpen = false;
+
 
     document.getElementById(
       "chatPage"
     ).style.display =
       "none";
+
 
     document.getElementById(
       "homePage"
@@ -954,12 +1294,95 @@
         "messageInput"
       );
 
+
     const text =
       input.value.trim();
 
 
     if (!text) {
       return;
+    }
+
+
+    if (
+      !currentFriend ||
+      groupChatOpen
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
+
+      alert(
+        "Keine Serververbindung."
+      );
+
+      return;
+
+    }
+
+
+    socket.send(
+      JSON.stringify({
+
+        type: "message",
+
+        to: currentFriend,
+
+        text
+
+      })
+    );
+
+
+    addMessage(
+      text,
+      true
+    );
+
+
+    input.value = "";
+
+  }
+
+
+  function sendGroupMessage() {
+
+    const input =
+      document.getElementById(
+        "groupMessageInput"
+      );
+
+
+    const text =
+      input.value.trim();
+
+
+    if (!text) {
+      return;
+    }
+
+
+    const username =
+      localStorage.getItem(
+        "username"
+      );
+
+
+    if (!isGroupAdmin(username)) {
+
+      alert(
+        "Du darfst im Gruppenchat nur lesen."
+      );
+
+      return;
+
     }
 
 
@@ -981,24 +1404,128 @@
       JSON.stringify({
 
         type:
-          "message",
+          "groupMessage",
 
-        to:
-          currentFriend,
-
-        text:
-          text
+        text
 
       })
     );
 
 
-    addMessage(
-      text,
-      true
+    input.value = "";
+
+  }
+
+
+  function showGroupMessages(
+    messages
+  ) {
+
+    const container =
+      document.getElementById(
+        "messages"
+      );
+
+
+    container.innerHTML = "";
+
+
+    messages.forEach(
+      message => {
+
+        addGroupMessage(
+          message
+        );
+
+      }
     );
 
-    input.value = "";
+  }
+
+
+  function addGroupMessage(
+    message
+  ) {
+
+    if (!message) {
+      return;
+    }
+
+
+    const container =
+      document.getElementById(
+        "messages"
+      );
+
+
+    const wrapper =
+      document.createElement(
+        "div"
+      );
+
+
+    wrapper.className =
+      "groupMessage";
+
+
+    const author =
+      document.createElement(
+        "div"
+      );
+
+
+    author.className =
+      isGroupAdmin(
+        message.username
+      )
+        ? "messageAuthor adminName"
+        : "messageAuthor";
+
+
+    author.textContent =
+      getDisplayName(
+        message.username
+      ) +
+      (
+        isGroupAdmin(
+          message.username
+        )
+          ? " 👑"
+          : ""
+      );
+
+
+    const text =
+      document.createElement(
+        "div"
+      );
+
+
+    text.className =
+      "messageText";
+
+
+    text.textContent =
+      message.text;
+
+
+    wrapper.appendChild(
+      author
+    );
+
+
+    wrapper.appendChild(
+      text
+    );
+
+
+    container.appendChild(
+      wrapper
+    );
+
+
+    container.scrollTop =
+      container.scrollHeight;
 
   }
 
@@ -1013,13 +1540,16 @@
         "div"
       );
 
+
     message.className =
       mine
         ? "message mine"
         : "message";
 
+
     message.textContent =
       text;
+
 
     document.getElementById(
       "messages"
@@ -1027,10 +1557,12 @@
       message
     );
 
+
     const messages =
       document.getElementById(
         "messages"
       );
+
 
     messages.scrollTop =
       messages.scrollHeight;
@@ -1047,6 +1579,7 @@
       .value
       .toLowerCase();
 
+
     document
       .querySelectorAll(
         ".friend"
@@ -1062,6 +1595,7 @@
               .textContent
               .toLowerCase();
 
+
           friend.style.display =
             name.includes(search)
               ? "flex"
@@ -1073,17 +1607,22 @@
   }
 
 
-  function changeProfileImage(event) {
+  function changeProfileImage(
+    event
+  ) {
 
     const file =
       event.target.files[0];
+
 
     if (!file) {
       return;
     }
 
+
     const reader =
       new FileReader();
+
 
     reader.onload =
       function(e) {
@@ -1093,12 +1632,14 @@
         ).src =
           e.target.result;
 
+
         localStorage.setItem(
           "profileImage",
           e.target.result
         );
 
       };
+
 
     reader.readAsDataURL(
       file
@@ -1128,10 +1669,32 @@
     );
 
 
+  document
+    .getElementById(
+      "groupMessageInput"
+    )
+    .addEventListener(
+      "keydown",
+      event => {
+
+        if (
+          event.key ===
+          "Enter"
+        ) {
+
+          sendGroupMessage();
+
+        }
+
+      }
+    );
+
+
   const savedImage =
     localStorage.getItem(
       "profileImage"
     );
+
 
   if (savedImage) {
 
