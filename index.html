@@ -125,18 +125,22 @@
       margin: auto auto 12px;
     }
 
+    #myUsername {
+      font-weight: bold;
+      font-size: 18px;
+    }
+
     .profileButton {
       width: auto;
       padding: 10px 16px;
-      margin-top: 5px;
+      margin-top: 10px;
     }
 
     #search {
       margin: 18px 0;
     }
 
-    .friend,
-    .groupChatCard {
+    .friend {
       display: flex;
       align-items: center;
       gap: 12px;
@@ -148,25 +152,10 @@
       cursor: pointer;
     }
 
-    .groupChatCard {
-      padding: 15px;
-      border: 1px solid #333;
-      background: linear-gradient(
-        135deg,
-        #111,
-        #171717
-      );
-    }
-
-    .groupChatCard:hover,
-    .friend:hover {
-      background: #181818;
-    }
-
-    .groupIcon,
-    .avatar {
-      width: 50px;
-      height: 50px;
+    .avatar,
+    .groupIcon {
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       background: #222;
       display: flex;
@@ -176,20 +165,30 @@
       flex-shrink: 0;
     }
 
-    .groupIcon {
-      font-size: 24px;
-    }
-
-    .groupInfo {
-      min-width: 0;
-    }
-
-    .friendName,
-    .animatedName {
+    .friendName {
       font-weight: bold;
     }
 
+    .lastMessage {
+      color: #888;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .groupChatCard {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #111;
+      border: 1px solid #292929;
+      border-radius: 16px;
+      cursor: pointer;
+    }
+
     .animatedName {
+      font-weight: bold;
       animation: nameGlow 2s ease-in-out infinite;
     }
 
@@ -218,16 +217,6 @@
       }
     }
 
-    .lastMessage {
-      color: #888;
-      font-size: 14px;
-      margin-top: 4px;
-    }
-
-    .groupInfo .lastMessage {
-      color: #777;
-    }
-
     #chatPage {
       display: none;
       height: calc(100vh - 90px);
@@ -251,10 +240,6 @@
       font-size: 25px;
     }
 
-    #chatTitle {
-      font-size: 18px;
-    }
-
     #messages {
       flex: 1;
       overflow-y: auto;
@@ -276,34 +261,11 @@
       background: #252525;
     }
 
-    .groupMessage {
-      width: 100%;
-      max-width: 100%;
-      background: #111;
-      border: 1px solid #222;
-      border-radius: 14px;
-      padding: 11px;
-      margin-bottom: 8px;
-    }
-
-    .messageAuthor {
-      font-size: 13px;
-      margin-bottom: 5px;
+    .messageUser {
+      font-size: 12px;
       color: #aaa;
-    }
-
-    .messageText {
-      font-size: 15px;
-      word-break: break-word;
-    }
-
-    .readOnlyNotice {
-      display: none;
-      padding: 10px;
-      text-align: center;
-      color: #888;
-      font-size: 13px;
-      border-top: 1px solid #222;
+      margin-bottom: 4px;
+      font-weight: bold;
     }
 
     #inputArea {
@@ -323,8 +285,13 @@
       margin: 0;
     }
 
-    #groupInputArea {
+    #groupReadOnly {
       display: none;
+      text-align: center;
+      color: #888;
+      font-size: 13px;
+      padding: 10px;
+      border-top: 1px solid #222;
     }
   </style>
 </head>
@@ -333,6 +300,7 @@
 
 <div id="accessScreen" class="screen">
   <div class="box">
+
     <h1>🔐</h1>
 
     <h2 style="text-align:center;">
@@ -354,6 +322,7 @@
     </button>
 
     <div id="accessError" class="error"></div>
+
   </div>
 </div>
 
@@ -478,6 +447,7 @@
 
     </div>
 
+
     <input
       id="friendUsername"
       type="text"
@@ -488,6 +458,7 @@
       + Freund hinzufügen
     </button>
 
+
     <input
       id="search"
       type="text"
@@ -495,8 +466,6 @@
       oninput="searchFriends()"
     >
 
-
-    <!-- ALLGEMEIN -->
 
     <div
       class="groupChatCard"
@@ -507,16 +476,14 @@
         🌐
       </div>
 
-      <div class="groupInfo">
-
+      <div>
         <div class="animatedName">
           Allgemein
         </div>
 
         <div class="lastMessage">
-          Großer Gruppenchat · Nachrichten nach 24h gelöscht
+          Großer Gruppenchat
         </div>
-
       </div>
 
     </div>
@@ -534,7 +501,6 @@
         </div>
 
         <div>
-
           <div class="friendName">
             Max
           </div>
@@ -542,7 +508,6 @@
           <div class="lastMessage">
             Testfreund
           </div>
-
         </div>
 
       </div>
@@ -551,8 +516,6 @@
 
   </div>
 
-
-  <!-- CHAT -->
 
   <div id="chatPage">
 
@@ -571,10 +534,14 @@
 
     </div>
 
+
     <div id="messages"></div>
 
 
-    <!-- PRIVATER CHAT -->
+    <div id="groupReadOnly">
+      👀 Du kannst hier nur lesen.
+    </div>
+
 
     <div id="inputArea">
 
@@ -593,39 +560,6 @@
 
     </div>
 
-
-    <!-- NUR LESEN -->
-
-    <div
-      id="readOnlyNotice"
-      class="readOnlyNotice"
-    >
-      👀 Du kannst hier nur lesen.
-    </div>
-
-
-    <!-- GRUPPENCHAT -->
-
-    <div
-      id="groupInputArea"
-      class="inputArea"
-    >
-
-      <input
-        id="groupMessageInput"
-        type="text"
-        placeholder="In Allgemein schreiben..."
-      >
-
-      <button
-        id="groupSendButton"
-        onclick="sendGroupMessage()"
-      >
-        Senden
-      </button>
-
-    </div>
-
   </div>
 
 </div>
@@ -635,13 +569,47 @@
 
   let socket;
   let currentFriend = null;
-  let groupChatOpen = false;
+  let currentChatType = "private";
 
 
   const GROUP_ADMINS = [
     "saftpresse040",
     "thcliquide"
   ];
+
+
+  function isGroupAdmin() {
+
+    const username =
+      localStorage.getItem("username");
+
+    return GROUP_ADMINS.includes(
+      username
+    );
+
+  }
+
+
+  function getDisplayName(username) {
+
+    if (!username) {
+      return "";
+    }
+
+    if (
+      username === "saftpresse040" ||
+      username === "thcliquide"
+    ) {
+
+      return "@" +
+        username +
+        " 🧃 👑";
+
+    }
+
+    return "@" + username;
+
+  }
 
 
   function connectSocket() {
@@ -677,7 +645,9 @@
         }
 
 
-        if (data.type === "registered") {
+        if (
+          data.type === "registered"
+        ) {
 
           localStorage.setItem(
             "username",
@@ -690,7 +660,9 @@
         }
 
 
-        if (data.type === "loggedIn") {
+        if (
+          data.type === "loggedIn"
+        ) {
 
           localStorage.setItem(
             "username",
@@ -703,7 +675,9 @@
         }
 
 
-        if (data.type === "friendRequest") {
+        if (
+          data.type === "friendRequest"
+        ) {
 
           alert(
             "Neue Freundschaftsanfrage von @" +
@@ -715,7 +689,9 @@
         }
 
 
-        if (data.type === "requestSent") {
+        if (
+          data.type === "requestSent"
+        ) {
 
           alert(
             "Anfrage an @" +
@@ -728,14 +704,16 @@
         }
 
 
-        if (data.type === "message") {
+        if (
+          data.type === "message"
+        ) {
 
           if (
-            data.from === currentFriend &&
-            !groupChatOpen
+            currentChatType === "private" &&
+            data.from === currentFriend
           ) {
 
-            addMessage(
+            addPrivateMessage(
               data.text,
               false
             );
@@ -747,10 +725,23 @@
         }
 
 
-        if (data.type === "groupMessages") {
+        if (
+          data.type === "groupMessages"
+        ) {
 
-          showGroupMessages(
-            data.messages || []
+          document.getElementById(
+            "messages"
+          ).innerHTML = "";
+
+          data.messages.forEach(
+            message => {
+
+              addGroupMessage(
+                message.username,
+                message.text
+              );
+
+            }
           );
 
           return;
@@ -758,12 +749,17 @@
         }
 
 
-        if (data.type === "groupMessage") {
+        if (
+          data.type === "groupMessage"
+        ) {
 
-          if (groupChatOpen) {
+          if (
+            currentChatType === "group"
+          ) {
 
             addGroupMessage(
-              data.message
+              data.message.username,
+              data.message.text
             );
 
           }
@@ -808,8 +804,7 @@
     const code =
       document.getElementById(
         "accessCode"
-      ).value.trim();
-
+      ).value;
 
     if (!code) {
 
@@ -822,12 +817,10 @@
 
     }
 
-
     sessionStorage.setItem(
       "accessCode",
       code
     );
-
 
     document.getElementById(
       "accessScreen"
@@ -879,12 +872,10 @@
         "registerUsername"
       ).value.trim();
 
-
     const password =
       document.getElementById(
         "registerPassword"
       ).value;
-
 
     const accessCode =
       sessionStorage.getItem(
@@ -904,7 +895,20 @@
     }
 
 
+    if (password.length < 8) {
+
+      document.getElementById(
+        "registerError"
+      ).textContent =
+        "Das Passwort muss mindestens 8 Zeichen haben.";
+
+      return;
+
+    }
+
+
     if (
+      !socket ||
       socket.readyState !==
       WebSocket.OPEN
     ) {
@@ -943,7 +947,6 @@
         "loginUsername"
       ).value.trim();
 
-
     const password =
       document.getElementById(
         "loginPassword"
@@ -963,6 +966,7 @@
 
 
     if (
+      !socket ||
       socket.readyState !==
       WebSocket.OPEN
     ) {
@@ -1005,6 +1009,11 @@
       "none";
 
     document.getElementById(
+      "accessScreen"
+    ).style.display =
+      "none";
+
+    document.getElementById(
       "app"
     ).style.display =
       "block";
@@ -1024,56 +1033,6 @@
   }
 
 
-  function getDisplayName(username) {
-
-    if (!username) {
-      return "Benutzer";
-    }
-
-
-    const lower =
-      username.toLowerCase();
-
-
-    if (
-      lower ===
-      "saftpresse040"
-    ) {
-
-      return "Saftpresse040🧃";
-
-    }
-
-
-    if (
-      lower ===
-      "thcliquide"
-    ) {
-
-      return "Thcliquide🧃";
-
-    }
-
-
-    return "@" + username;
-
-  }
-
-
-  function isGroupAdmin(username) {
-
-    if (!username) {
-      return false;
-    }
-
-
-    return GROUP_ADMINS.includes(
-      username.toLowerCase()
-    );
-
-  }
-
-
   function addFriend() {
 
     const input =
@@ -1081,10 +1040,8 @@
         "friendUsername"
       );
 
-
     const username =
       input.value.trim();
-
 
     if (!username) {
 
@@ -1098,6 +1055,7 @@
 
 
     if (
+      !socket ||
       socket.readyState !==
       WebSocket.OPEN
     ) {
@@ -1129,16 +1087,17 @@
 
   function openChat(friend) {
 
-    groupChatOpen = false;
+    currentChatType =
+      "private";
 
-    currentFriend = friend;
+    currentFriend =
+      friend;
 
 
     document.getElementById(
       "homePage"
     ).style.display =
       "none";
-
 
     document.getElementById(
       "chatPage"
@@ -1163,15 +1122,8 @@
     ).style.display =
       "flex";
 
-
     document.getElementById(
-      "groupInputArea"
-    ).style.display =
-      "none";
-
-
-    document.getElementById(
-      "readOnlyNotice"
+      "groupReadOnly"
     ).style.display =
       "none";
 
@@ -1180,16 +1132,17 @@
 
   function openGroupChat() {
 
-    groupChatOpen = true;
+    currentChatType =
+      "group";
 
-    currentFriend = null;
+    currentFriend =
+      null;
 
 
     document.getElementById(
       "homePage"
     ).style.display =
       "none";
-
 
     document.getElementById(
       "chatPage"
@@ -1209,41 +1162,27 @@
       "";
 
 
-    document.getElementById(
-      "inputArea"
-    ).style.display =
-      "none";
-
-
-    const username =
-      localStorage.getItem(
-        "username"
-      );
-
-
-    if (isGroupAdmin(username)) {
+    if (isGroupAdmin()) {
 
       document.getElementById(
-        "groupInputArea"
+        "inputArea"
       ).style.display =
         "flex";
 
-
       document.getElementById(
-        "readOnlyNotice"
+        "groupReadOnly"
       ).style.display =
         "none";
 
     } else {
 
       document.getElementById(
-        "groupInputArea"
+        "inputArea"
       ).style.display =
         "none";
 
-
       document.getElementById(
-        "readOnlyNotice"
+        "groupReadOnly"
       ).style.display =
         "block";
 
@@ -1251,6 +1190,7 @@
 
 
     if (
+      socket &&
       socket.readyState ===
       WebSocket.OPEN
     ) {
@@ -1269,15 +1209,17 @@
 
   function closeChat() {
 
-    currentFriend = null;
-    groupChatOpen = false;
+    currentFriend =
+      null;
+
+    currentChatType =
+      "private";
 
 
     document.getElementById(
       "chatPage"
     ).style.display =
       "none";
-
 
     document.getElementById(
       "homePage"
@@ -1294,7 +1236,6 @@
         "messageInput"
       );
 
-
     const text =
       input.value.trim();
 
@@ -1305,16 +1246,7 @@
 
 
     if (
-      !currentFriend ||
-      groupChatOpen
-    ) {
-
-      return;
-
-    }
-
-
-    if (
+      !socket ||
       socket.readyState !==
       WebSocket.OPEN
     ) {
@@ -1328,72 +1260,35 @@
     }
 
 
-    socket.send(
-      JSON.stringify({
-
-        type: "message",
-
-        to: currentFriend,
-
-        text
-
-      })
-    );
-
-
-    addMessage(
-      text,
-      true
-    );
-
-
-    input.value = "";
-
-  }
-
-
-  function sendGroupMessage() {
-
-    const input =
-      document.getElementById(
-        "groupMessageInput"
-      );
-
-
-    const text =
-      input.value.trim();
-
-
-    if (!text) {
-      return;
-    }
-
-
-    const username =
-      localStorage.getItem(
-        "username"
-      );
-
-
-    if (!isGroupAdmin(username)) {
-
-      alert(
-        "Du darfst im Gruppenchat nur lesen."
-      );
-
-      return;
-
-    }
-
-
     if (
-      socket.readyState !==
-      WebSocket.OPEN
+      currentChatType ===
+      "group"
     ) {
 
-      alert(
-        "Keine Serververbindung."
+      if (!isGroupAdmin()) {
+
+        alert(
+          "Du darfst im Gruppenchat nur lesen."
+        );
+
+        return;
+
+      }
+
+
+      socket.send(
+        JSON.stringify({
+
+          type:
+            "groupMessage",
+
+          text
+
+        })
       );
+
+
+      input.value = "";
 
       return;
 
@@ -1404,11 +1299,20 @@
       JSON.stringify({
 
         type:
-          "groupMessage",
+          "message",
+
+        to:
+          currentFriend,
 
         text
 
       })
+    );
+
+
+    addPrivateMessage(
+      text,
+      true
     );
 
 
@@ -1417,120 +1321,7 @@
   }
 
 
-  function showGroupMessages(
-    messages
-  ) {
-
-    const container =
-      document.getElementById(
-        "messages"
-      );
-
-
-    container.innerHTML = "";
-
-
-    messages.forEach(
-      message => {
-
-        addGroupMessage(
-          message
-        );
-
-      }
-    );
-
-  }
-
-
-  function addGroupMessage(
-    message
-  ) {
-
-    if (!message) {
-      return;
-    }
-
-
-    const container =
-      document.getElementById(
-        "messages"
-      );
-
-
-    const wrapper =
-      document.createElement(
-        "div"
-      );
-
-
-    wrapper.className =
-      "groupMessage";
-
-
-    const author =
-      document.createElement(
-        "div"
-      );
-
-
-    author.className =
-      isGroupAdmin(
-        message.username
-      )
-        ? "messageAuthor adminName"
-        : "messageAuthor";
-
-
-    author.textContent =
-      getDisplayName(
-        message.username
-      ) +
-      (
-        isGroupAdmin(
-          message.username
-        )
-          ? " 👑"
-          : ""
-      );
-
-
-    const text =
-      document.createElement(
-        "div"
-      );
-
-
-    text.className =
-      "messageText";
-
-
-    text.textContent =
-      message.text;
-
-
-    wrapper.appendChild(
-      author
-    );
-
-
-    wrapper.appendChild(
-      text
-    );
-
-
-    container.appendChild(
-      wrapper
-    );
-
-
-    container.scrollTop =
-      container.scrollHeight;
-
-  }
-
-
-  function addMessage(
+  function addPrivateMessage(
     text,
     mine
   ) {
@@ -1540,12 +1331,10 @@
         "div"
       );
 
-
     message.className =
       mine
         ? "message mine"
         : "message";
-
 
     message.textContent =
       text;
@@ -1558,11 +1347,87 @@
     );
 
 
+    scrollMessages();
+
+  }
+
+
+  function addGroupMessage(
+    username,
+    text
+  ) {
+
+    const wrapper =
+      document.createElement(
+        "div"
+      );
+
+    wrapper.className =
+      "message";
+
+
+    const user =
+      document.createElement(
+        "div"
+      );
+
+    user.className =
+      "messageUser";
+
+
+    if (
+      username ===
+        "saftpresse040" ||
+      username ===
+        "thcliquide"
+    ) {
+
+      user.className =
+        "messageUser adminName";
+
+    }
+
+
+    user.textContent =
+      getDisplayName(username);
+
+
+    const messageText =
+      document.createElement(
+        "div"
+      );
+
+    messageText.textContent =
+      text;
+
+
+    wrapper.appendChild(
+      user
+    );
+
+    wrapper.appendChild(
+      messageText
+    );
+
+
+    document.getElementById(
+      "messages"
+    ).appendChild(
+      wrapper
+    );
+
+
+    scrollMessages();
+
+  }
+
+
+  function scrollMessages() {
+
     const messages =
       document.getElementById(
         "messages"
       );
-
 
     messages.scrollTop =
       messages.scrollHeight;
@@ -1607,13 +1472,10 @@
   }
 
 
-  function changeProfileImage(
-    event
-  ) {
+  function changeProfileImage(event) {
 
     const file =
       event.target.files[0];
-
 
     if (!file) {
       return;
@@ -1662,27 +1524,6 @@
         ) {
 
           sendMessage();
-
-        }
-
-      }
-    );
-
-
-  document
-    .getElementById(
-      "groupMessageInput"
-    )
-    .addEventListener(
-      "keydown",
-      event => {
-
-        if (
-          event.key ===
-          "Enter"
-        ) {
-
-          sendGroupMessage();
 
         }
 
