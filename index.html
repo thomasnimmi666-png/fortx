@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#000000">
+
+  <link rel="manifest" href="/manifest.json">
+
   <title>Privater Messenger</title>
 
   <style>
@@ -76,14 +79,6 @@
       border: 1px solid #333;
     }
 
-    .smallButton {
-      background: transparent;
-      color: #aaa;
-      border: none;
-      font-size: 14px;
-      margin-top: 8px;
-    }
-
     .error {
       color: #ff5c5c;
       text-align: center;
@@ -91,17 +86,8 @@
       margin-top: 10px;
     }
 
-    .success {
-      color: #63ff8a;
-      text-align: center;
-      min-height: 20px;
-      margin-top: 10px;
-    }
-
     #loginScreen,
     #registerScreen,
-    #forgotScreen,
-    #resetScreen,
     #app {
       display: none;
     }
@@ -203,7 +189,21 @@
       cursor: pointer;
     }
 
-    .animatedName,
+    .animatedName {
+      font-weight: bold;
+      animation: nameGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes nameGlow {
+      0%, 100% {
+        text-shadow: 0 0 3px #fff;
+      }
+
+      50% {
+        text-shadow: 0 0 12px #fff;
+      }
+    }
+
     .adminName {
       font-weight: bold;
       animation: adminGlow 2s ease-in-out infinite;
@@ -295,12 +295,17 @@
       padding: 10px;
       border-top: 1px solid #222;
     }
+
+    #installButton {
+      display: none;
+      margin: 15px auto;
+      width: auto;
+      padding: 12px 18px;
+    }
   </style>
 </head>
 
 <body>
-
-<!-- ZUGANGSCODE -->
 
 <div id="accessScreen" class="screen">
   <div class="box">
@@ -330,8 +335,6 @@
   </div>
 </div>
 
-
-<!-- LOGIN -->
 
 <div id="loginScreen" class="screen">
   <div class="box">
@@ -367,20 +370,11 @@
       Neues Konto erstellen
     </button>
 
-    <button
-      class="smallButton"
-      onclick="showForgot()"
-    >
-      Passwort vergessen?
-    </button>
-
     <div id="loginError" class="error"></div>
 
   </div>
 </div>
 
-
-<!-- REGISTRIERUNG -->
 
 <div id="registerScreen" class="screen">
   <div class="box">
@@ -422,95 +416,18 @@
 </div>
 
 
-<!-- PASSWORT VERGESSEN -->
-
-<div id="forgotScreen" class="screen">
-  <div class="box">
-
-    <h1>🔑</h1>
-
-    <h2 style="text-align:center;">
-      Passwort vergessen?
-    </h2>
-
-    <p>
-      Gib deinen Benutzernamen ein.
-      Die Admins erhalten anschließend
-      eine Reset-Anfrage.
-    </p>
-
-    <input
-      id="forgotUsername"
-      type="text"
-      placeholder="Benutzername"
-      autocomplete="username"
-    >
-
-    <button onclick="forgotPassword()">
-      Anfrage senden
-    </button>
-
-    <button
-      class="secondary"
-      onclick="showLogin()"
-    >
-      Zurück
-    </button>
-
-    <div id="forgotError" class="error"></div>
-    <div id="forgotSuccess" class="success"></div>
-
-  </div>
-</div>
-
-
-<!-- PASSWORT RESET -->
-
-<div id="resetScreen" class="screen">
-  <div class="box">
-
-    <h1>🔐</h1>
-
-    <h2 style="text-align:center;">
-      Neues Passwort
-    </h2>
-
-    <p id="resetUsernameText">
-      Passwort zurücksetzen
-    </p>
-
-    <input
-      id="resetPassword"
-      type="password"
-      placeholder="Neues Passwort (mind. 8 Zeichen)"
-      autocomplete="new-password"
-    >
-
-    <input
-      id="resetPassword2"
-      type="password"
-      placeholder="Neues Passwort wiederholen"
-      autocomplete="new-password"
-    >
-
-    <button onclick="resetPassword()">
-      Passwort ändern
-    </button>
-
-    <div id="resetError" class="error"></div>
-    <div id="resetSuccess" class="success"></div>
-
-  </div>
-</div>
-
-
-<!-- APP -->
-
 <div id="app">
 
   <header>
     🔐 Privater Messenger
   </header>
+
+  <button
+    id="installButton"
+    onclick="installApp()"
+  >
+    📲 App installieren
+  </button>
 
   <div id="status">
     🔄 Verbindung wird hergestellt...
@@ -525,10 +442,7 @@
         alt="Profilbild"
       >
 
-      <div
-        id="myUsername"
-        class="adminName"
-      >
+      <div id="myUsername">
         Benutzer
       </div>
 
@@ -576,7 +490,6 @@
       </div>
 
       <div>
-
         <div class="animatedName">
           Allgemein
         </div>
@@ -584,7 +497,6 @@
         <div class="lastMessage">
           Großer Gruppenchat
         </div>
-
       </div>
 
     </div>
@@ -601,7 +513,6 @@
         </div>
 
         <div>
-
           <div class="friendName">
             Max
           </div>
@@ -609,7 +520,6 @@
           <div class="lastMessage">
             Testfreund
           </div>
-
         </div>
 
       </div>
@@ -669,13 +579,90 @@
 let socket;
 let currentFriend = null;
 let currentChatType = "private";
-let resetToken = null;
 
 const GROUP_ADMINS = [
   "saftpresse040",
   "thcliquide"
 ];
 
+let deferredInstallPrompt = null;
+
+
+/* =========================
+   PWA
+========================= */
+
+if ("serviceWorker" in navigator) {
+
+  window.addEventListener("load", () => {
+
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .then(() => {
+        console.log("✅ Service Worker aktiv");
+      })
+      .catch(error => {
+        console.log(
+          "❌ Service Worker Fehler:",
+          error
+        );
+      });
+
+  });
+
+}
+
+
+window.addEventListener(
+  "beforeinstallprompt",
+  event => {
+
+    event.preventDefault();
+
+    deferredInstallPrompt = event;
+
+    document.getElementById(
+      "installButton"
+    ).style.display = "block";
+
+  }
+);
+
+
+async function installApp() {
+
+  if (!deferredInstallPrompt) {
+
+    alert(
+      "Die Installationsfunktion ist auf diesem Gerät gerade nicht verfügbar. Im Browser-Menü kannst du die App zum Home-Bildschirm hinzufügen."
+    );
+
+    return;
+
+  }
+
+  deferredInstallPrompt.prompt();
+
+  const result =
+    await deferredInstallPrompt.userChoice;
+
+  console.log(
+    "Installation:",
+    result.outcome
+  );
+
+  deferredInstallPrompt = null;
+
+  document.getElementById(
+    "installButton"
+  ).style.display = "none";
+
+}
+
+
+/* =========================
+   ADMIN
+========================= */
 
 function isGroupAdmin() {
 
@@ -685,13 +672,18 @@ function isGroupAdmin() {
   return GROUP_ADMINS.includes(
     String(username || "").toLowerCase()
   );
+
 }
 
 
 function getDisplayName(username) {
 
+  if (!username) {
+    return "";
+  }
+
   const name =
-    String(username || "")
+    String(username)
       .trim()
       .toLowerCase();
 
@@ -703,328 +695,21 @@ function getDisplayName(username) {
     return "Thcliquide 🧃 👑";
   }
 
-  return String(username || "");
-}
-
-
-function hideScreens() {
-
-  [
-    "accessScreen",
-    "loginScreen",
-    "registerScreen",
-    "forgotScreen",
-    "resetScreen",
-    "app"
-  ].forEach(id => {
-
-    document.getElementById(id)
-      .style.display = "none";
-
-  });
-}
-
-
-function showLogin() {
-
-  hideScreens();
-
-  document.getElementById(
-    "loginScreen"
-  ).style.display = "flex";
-}
-
-
-function showRegister() {
-
-  hideScreens();
-
-  document.getElementById(
-    "registerScreen"
-  ).style.display = "flex";
-}
-
-
-function showForgot() {
-
-  hideScreens();
-
-  document.getElementById(
-    "forgotScreen"
-  ).style.display = "flex";
+  return String(username);
 
 }
 
 
-function checkAccess() {
-
-  const code =
-    document.getElementById(
-      "accessCode"
-    ).value;
-
-  if (!code) {
-
-    document.getElementById(
-      "accessError"
-    ).textContent =
-      "Bitte Zugangscode eingeben.";
-
-    return;
-  }
-
-  sessionStorage.setItem(
-    "accessCode",
-    code
-  );
-
-  hideScreens();
-
-  document.getElementById(
-    "loginScreen"
-  ).style.display = "flex";
-}
-
-
-function register() {
-
-  const username =
-    document.getElementById(
-      "registerUsername"
-    ).value.trim();
-
-  const password =
-    document.getElementById(
-      "registerPassword"
-    ).value;
-
-  const accessCode =
-    sessionStorage.getItem(
-      "accessCode"
-    );
-
-  if (!username || !password) {
-
-    document.getElementById(
-      "registerError"
-    ).textContent =
-      "Bitte alles ausfüllen.";
-
-    return;
-  }
-
-  if (password.length < 8) {
-
-    document.getElementById(
-      "registerError"
-    ).textContent =
-      "Das Passwort muss mindestens 8 Zeichen haben.";
-
-    return;
-  }
-
-  if (
-    !socket ||
-    socket.readyState !== WebSocket.OPEN
-  ) {
-
-    document.getElementById(
-      "registerError"
-    ).textContent =
-      "Server noch nicht verbunden.";
-
-    return;
-  }
-
-  socket.send(
-    JSON.stringify({
-      type: "register",
-      username,
-      password,
-      accessCode
-    })
-  );
-}
-
-
-function login() {
-
-  const username =
-    document.getElementById(
-      "loginUsername"
-    ).value.trim();
-
-  const password =
-    document.getElementById(
-      "loginPassword"
-    ).value;
-
-  if (!username || !password) {
-
-    document.getElementById(
-      "loginError"
-    ).textContent =
-      "Bitte Benutzername und Passwort eingeben.";
-
-    return;
-  }
-
-  if (
-    !socket ||
-    socket.readyState !== WebSocket.OPEN
-  ) {
-
-    document.getElementById(
-      "loginError"
-    ).textContent =
-      "Server noch nicht verbunden.";
-
-    return;
-  }
-
-  socket.send(
-    JSON.stringify({
-      type: "login",
-      username,
-      password
-    })
-  );
-}
-
-
-function forgotPassword() {
-
-  const username =
-    document.getElementById(
-      "forgotUsername"
-    ).value.trim();
-
-  if (!username) {
-
-    document.getElementById(
-      "forgotError"
-    ).textContent =
-      "Bitte Benutzernamen eingeben.";
-
-    return;
-  }
-
-  if (
-    !socket ||
-    socket.readyState !== WebSocket.OPEN
-  ) {
-
-    document.getElementById(
-      "forgotError"
-    ).textContent =
-      "Server noch nicht verbunden.";
-
-    return;
-  }
-
-  document.getElementById(
-    "forgotError"
-  ).textContent = "";
-
-  document.getElementById(
-    "forgotSuccess"
-  ).textContent =
-    "Anfrage wird gesendet...";
-
-  socket.send(
-    JSON.stringify({
-      type: "forgotPassword",
-      username
-    })
-  );
-}
-
-
-function resetPassword() {
-
-  const password =
-    document.getElementById(
-      "resetPassword"
-    ).value;
-
-  const password2 =
-    document.getElementById(
-      "resetPassword2"
-    ).value;
-
-  if (password.length < 8) {
-
-    document.getElementById(
-      "resetError"
-    ).textContent =
-      "Das Passwort muss mindestens 8 Zeichen haben.";
-
-    return;
-  }
-
-  if (password !== password2) {
-
-    document.getElementById(
-      "resetError"
-    ).textContent =
-      "Die Passwörter stimmen nicht überein.";
-
-    return;
-  }
-
-  if (!resetToken) {
-
-    document.getElementById(
-      "resetError"
-    ).textContent =
-      "Kein gültiger Reset-Link.";
-
-    return;
-  }
-
-  socket.send(
-    JSON.stringify({
-      type: "resetPassword",
-      token: resetToken,
-      password
-    })
-  );
-}
-
-
-function showApp() {
-
-  hideScreens();
-
-  document.getElementById(
-    "app"
-  ).style.display = "block";
-
-  const username =
-    localStorage.getItem(
-      "username"
-    );
-
-  const usernameElement =
-    document.getElementById(
-      "myUsername"
-    );
-
-  usernameElement.textContent =
-    getDisplayName(username);
-
-  usernameElement.classList.toggle(
-    "adminName",
-    isGroupAdmin()
-  );
-}
-
+/* =========================
+   WEBSOCKET
+========================= */
 
 function connectSocket() {
 
   socket = new WebSocket(
     "wss://fortx.onrender.com"
   );
+
 
   socket.onopen = () => {
 
@@ -1043,21 +728,21 @@ function connectSocket() {
       const data =
         JSON.parse(event.data);
 
+
       if (data.type === "error") {
 
-        const activeError =
-          document.querySelector(
-            ".screen:not([style*='display: none']) .error"
-          );
+        document.getElementById(
+          "loginError"
+        ).textContent =
+          data.text;
 
-        if (activeError) {
-          activeError.textContent =
-            data.text;
-        } else {
-          alert(data.text);
-        }
+        document.getElementById(
+          "registerError"
+        ).textContent =
+          data.text;
 
         return;
+
       }
 
 
@@ -1069,7 +754,9 @@ function connectSocket() {
         );
 
         showApp();
+
         return;
+
       }
 
 
@@ -1081,81 +768,9 @@ function connectSocket() {
         );
 
         showApp();
-        return;
-      }
-
-
-      if (data.type === "forgotPasswordSent") {
-
-        document.getElementById(
-          "forgotSuccess"
-        ).textContent =
-          data.text ||
-          "Die Anfrage wurde an die Admins gesendet.";
 
         return;
-      }
 
-
-      if (data.type === "passwordResetSuccess") {
-
-        document.getElementById(
-          "resetSuccess"
-        ).textContent =
-          "Passwort erfolgreich geändert. Du kannst dich jetzt anmelden.";
-
-        setTimeout(() => {
-          showLogin();
-        }, 1500);
-
-        return;
-      }
-
-
-      if (data.type === "passwordResetRequest") {
-
-        if (isGroupAdmin()) {
-
-          const create =
-            confirm(
-              "🔑 Passwort-Reset-Anfrage\n\nBenutzer: @" +
-              data.username +
-              "\n\nReset-Link erstellen?"
-            );
-
-          if (create) {
-
-            socket.send(
-              JSON.stringify({
-                type:
-                  "createPasswordReset",
-                username:
-                  data.username
-              })
-            );
-
-          }
-
-        }
-
-        return;
-      }
-
-
-      if (data.type === "passwordResetLink") {
-
-        const link =
-          data.resetUrl;
-
-        alert(
-          "🔗 Reset-Link für @" +
-          data.username +
-          ":\n\n" +
-          link +
-          "\n\nDer Link ist 15 Minuten gültig."
-        );
-
-        return;
       }
 
 
@@ -1167,6 +782,7 @@ function connectSocket() {
         );
 
         return;
+
       }
 
 
@@ -1179,6 +795,7 @@ function connectSocket() {
         );
 
         return;
+
       }
 
 
@@ -1194,9 +811,15 @@ function connectSocket() {
             false
           );
 
+          showNotification(
+            data.from,
+            data.text
+          );
+
         }
 
         return;
+
       }
 
 
@@ -1218,6 +841,7 @@ function connectSocket() {
         );
 
         return;
+
       }
 
 
@@ -1232,9 +856,17 @@ function connectSocket() {
             data.message.text
           );
 
+        } else {
+
+          showNotification(
+            data.message.username,
+            data.message.text
+          );
+
         }
 
         return;
+
       }
 
     } catch (error) {
@@ -1271,6 +903,337 @@ function connectSocket() {
 }
 
 
+/* =========================
+   BENACHRICHTIGUNGEN
+========================= */
+
+async function requestNotifications() {
+
+  if (!("Notification" in window)) {
+    return;
+  }
+
+  if (
+    Notification.permission ===
+    "default"
+  ) {
+
+    await Notification.requestPermission();
+
+  }
+
+}
+
+
+function showNotification(
+  title,
+  text
+) {
+
+  if (
+    !("Notification" in window)
+  ) {
+    return;
+  }
+
+  if (
+    Notification.permission !==
+    "granted"
+  ) {
+    return;
+  }
+
+  if (
+    document.visibilityState ===
+    "visible"
+  ) {
+    return;
+  }
+
+  new Notification(
+    getDisplayName(title),
+    {
+      body: text,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png"
+    }
+  );
+
+}
+
+
+/* =========================
+   ZUGANG
+========================= */
+
+function checkAccess() {
+
+  const code =
+    document.getElementById(
+      "accessCode"
+    ).value;
+
+  if (!code) {
+
+    document.getElementById(
+      "accessError"
+    ).textContent =
+      "Bitte Zugangscode eingeben.";
+
+    return;
+
+  }
+
+  sessionStorage.setItem(
+    "accessCode",
+    code
+  );
+
+  document.getElementById(
+    "accessScreen"
+  ).style.display =
+    "none";
+
+  document.getElementById(
+    "loginScreen"
+  ).style.display =
+    "flex";
+
+}
+
+
+/* =========================
+   REGISTRIERUNG / LOGIN
+========================= */
+
+function showRegister() {
+
+  document.getElementById(
+    "loginScreen"
+  ).style.display =
+    "none";
+
+  document.getElementById(
+    "registerScreen"
+  ).style.display =
+    "flex";
+
+}
+
+
+function showLogin() {
+
+  document.getElementById(
+    "registerScreen"
+  ).style.display =
+    "none";
+
+  document.getElementById(
+    "loginScreen"
+  ).style.display =
+    "flex";
+
+}
+
+
+function register() {
+
+  const username =
+    document.getElementById(
+      "registerUsername"
+    ).value.trim();
+
+  const password =
+    document.getElementById(
+      "registerPassword"
+    ).value;
+
+  const accessCode =
+    sessionStorage.getItem(
+      "accessCode"
+    );
+
+
+  if (!username || !password) {
+
+    document.getElementById(
+      "registerError"
+    ).textContent =
+      "Bitte alles ausfüllen.";
+
+    return;
+
+  }
+
+
+  if (password.length < 8) {
+
+    document.getElementById(
+      "registerError"
+    ).textContent =
+      "Das Passwort muss mindestens 8 Zeichen haben.";
+
+    return;
+
+  }
+
+
+  if (
+    !socket ||
+    socket.readyState !==
+    WebSocket.OPEN
+  ) {
+
+    document.getElementById(
+      "registerError"
+    ).textContent =
+      "Server noch nicht verbunden.";
+
+    return;
+
+  }
+
+
+  socket.send(
+    JSON.stringify({
+
+      type: "register",
+
+      username,
+
+      password,
+
+      accessCode
+
+    })
+  );
+
+}
+
+
+function login() {
+
+  const username =
+    document.getElementById(
+      "loginUsername"
+    ).value.trim();
+
+  const password =
+    document.getElementById(
+      "loginPassword"
+    ).value;
+
+
+  if (!username || !password) {
+
+    document.getElementById(
+      "loginError"
+    ).textContent =
+      "Bitte Benutzername und Passwort eingeben.";
+
+    return;
+
+  }
+
+
+  if (
+    !socket ||
+    socket.readyState !==
+    WebSocket.OPEN
+  ) {
+
+    document.getElementById(
+      "loginError"
+    ).textContent =
+      "Server noch nicht verbunden.";
+
+    return;
+
+  }
+
+
+  socket.send(
+    JSON.stringify({
+
+      type: "login",
+
+      username,
+
+      password
+
+    })
+  );
+
+}
+
+
+/* =========================
+   APP
+========================= */
+
+function showApp() {
+
+  document.getElementById(
+    "loginScreen"
+  ).style.display =
+    "none";
+
+  document.getElementById(
+    "registerScreen"
+  ).style.display =
+    "none";
+
+  document.getElementById(
+    "accessScreen"
+  ).style.display =
+    "none";
+
+  document.getElementById(
+    "app"
+  ).style.display =
+    "block";
+
+
+  const username =
+    localStorage.getItem(
+      "username"
+    );
+
+
+  const usernameElement =
+    document.getElementById(
+      "myUsername"
+    );
+
+
+  usernameElement.textContent =
+    getDisplayName(username);
+
+
+  if (isGroupAdmin()) {
+
+    usernameElement.classList.add(
+      "adminName"
+    );
+
+  } else {
+
+    usernameElement.classList.remove(
+      "adminName"
+    );
+
+  }
+
+
+  requestNotifications();
+
+}
+
+
+/* =========================
+   FREUNDE
+========================= */
+
 function addFriend() {
 
   const input =
@@ -1281,6 +1244,7 @@ function addFriend() {
   const username =
     input.value.trim();
 
+
   if (!username) {
 
     alert(
@@ -1288,18 +1252,44 @@ function addFriend() {
     );
 
     return;
+
   }
+
+
+  if (
+    !socket ||
+    socket.readyState !==
+    WebSocket.OPEN
+  ) {
+
+    alert(
+      "Keine Serververbindung."
+    );
+
+    return;
+
+  }
+
 
   socket.send(
     JSON.stringify({
+
       type: "addFriend",
+
       username
+
     })
   );
 
+
   input.value = "";
+
 }
 
+
+/* =========================
+   PRIVATE CHAT
+========================= */
 
 function openChat(friend) {
 
@@ -1309,32 +1299,46 @@ function openChat(friend) {
   currentFriend =
     friend;
 
+
   document.getElementById(
     "homePage"
-  ).style.display = "none";
+  ).style.display =
+    "none";
 
   document.getElementById(
     "chatPage"
-  ).style.display = "flex";
+  ).style.display =
+    "flex";
+
 
   document.getElementById(
     "chatTitle"
   ).textContent =
     getDisplayName(friend);
 
+
   document.getElementById(
     "messages"
-  ).innerHTML = "";
+  ).innerHTML =
+    "";
+
 
   document.getElementById(
     "inputArea"
-  ).style.display = "flex";
+  ).style.display =
+    "flex";
 
   document.getElementById(
     "groupReadOnly"
-  ).style.display = "none";
+  ).style.display =
+    "none";
+
 }
 
+
+/* =========================
+   GRUPPENCHAT
+========================= */
 
 function openGroupChat() {
 
@@ -1344,74 +1348,100 @@ function openGroupChat() {
   currentFriend =
     null;
 
+
   document.getElementById(
     "homePage"
-  ).style.display = "none";
+  ).style.display =
+    "none";
 
   document.getElementById(
     "chatPage"
-  ).style.display = "flex";
+  ).style.display =
+    "flex";
+
 
   document.getElementById(
     "chatTitle"
   ).textContent =
     "🌐 Allgemein";
 
+
   document.getElementById(
     "messages"
-  ).innerHTML = "";
+  ).innerHTML =
+    "";
+
 
   if (isGroupAdmin()) {
 
     document.getElementById(
       "inputArea"
-    ).style.display = "flex";
+    ).style.display =
+      "flex";
 
     document.getElementById(
       "groupReadOnly"
-    ).style.display = "none";
+    ).style.display =
+      "none";
 
   } else {
 
     document.getElementById(
       "inputArea"
-    ).style.display = "none";
+    ).style.display =
+      "none";
 
     document.getElementById(
       "groupReadOnly"
-    ).style.display = "block";
+    ).style.display =
+      "block";
 
   }
 
+
   if (
     socket &&
-    socket.readyState === WebSocket.OPEN
+    socket.readyState ===
+    WebSocket.OPEN
   ) {
 
     socket.send(
       JSON.stringify({
-        type: "getGroupMessages"
+        type:
+          "getGroupMessages"
       })
     );
 
   }
+
 }
 
 
 function closeChat() {
 
-  currentFriend = null;
-  currentChatType = "private";
+  currentFriend =
+    null;
+
+  currentChatType =
+    "private";
+
 
   document.getElementById(
     "chatPage"
-  ).style.display = "none";
+  ).style.display =
+    "none";
 
   document.getElementById(
     "homePage"
-  ).style.display = "block";
+  ).style.display =
+    "block";
+
 }
 
+
+/* =========================
+   NACHRICHTEN
+========================= */
 
 function sendMessage() {
 
@@ -1423,13 +1453,16 @@ function sendMessage() {
   const text =
     input.value.trim();
 
+
   if (!text) {
     return;
   }
 
+
   if (
     !socket ||
-    socket.readyState !== WebSocket.OPEN
+    socket.readyState !==
+    WebSocket.OPEN
   ) {
 
     alert(
@@ -1437,10 +1470,13 @@ function sendMessage() {
     );
 
     return;
+
   }
 
+
   if (
-    currentChatType === "group"
+    currentChatType ===
+    "group"
   ) {
 
     if (!isGroupAdmin()) {
@@ -1450,40 +1486,64 @@ function sendMessage() {
       );
 
       return;
+
     }
+
 
     socket.send(
       JSON.stringify({
-        type: "groupMessage",
+
+        type:
+          "groupMessage",
+
         text
+
       })
     );
 
+
     input.value = "";
+
     return;
+
   }
+
 
   socket.send(
     JSON.stringify({
-      type: "message",
-      to: currentFriend,
+
+      type:
+        "message",
+
+      to:
+        currentFriend,
+
       text
+
     })
   );
+
 
   addPrivateMessage(
     text,
     true
   );
 
+
   input.value = "";
+
 }
 
 
-function addPrivateMessage(text, mine) {
+function addPrivateMessage(
+  text,
+  mine
+) {
 
   const message =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   message.className =
     mine
@@ -1493,11 +1553,16 @@ function addPrivateMessage(text, mine) {
   message.textContent =
     text;
 
+
   document.getElementById(
     "messages"
-  ).appendChild(message);
+  ).appendChild(
+    message
+  );
+
 
   scrollMessages();
+
 }
 
 
@@ -1507,21 +1572,28 @@ function addGroupMessage(
 ) {
 
   const wrapper =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   wrapper.className =
     "message";
 
+
   const user =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   user.className =
     "messageUser";
+
 
   const normalized =
     String(username || "")
       .trim()
       .toLowerCase();
+
 
   if (
     normalized === "saftpresse040" ||
@@ -1534,23 +1606,38 @@ function addGroupMessage(
 
   }
 
+
   user.textContent =
     getDisplayName(username);
 
+
   const messageText =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   messageText.textContent =
     text;
 
-  wrapper.appendChild(user);
-  wrapper.appendChild(messageText);
+
+  wrapper.appendChild(
+    user
+  );
+
+  wrapper.appendChild(
+    messageText
+  );
+
 
   document.getElementById(
     "messages"
-  ).appendChild(wrapper);
+  ).appendChild(
+    wrapper
+  );
+
 
   scrollMessages();
+
 }
 
 
@@ -1563,8 +1650,13 @@ function scrollMessages() {
 
   messages.scrollTop =
     messages.scrollHeight;
+
 }
 
+
+/* =========================
+   SUCHE
+========================= */
 
 function searchFriends() {
 
@@ -1575,103 +1667,111 @@ function searchFriends() {
     .value
     .toLowerCase();
 
+
   document
-    .querySelectorAll(".friend")
-    .forEach(friend => {
+    .querySelectorAll(
+      ".friend"
+    )
+    .forEach(
+      friend => {
 
-      const name =
-        friend
-          .querySelector(".friendName")
-          .textContent
-          .toLowerCase();
+        const name =
+          friend
+            .querySelector(
+              ".friendName"
+            )
+            .textContent
+            .toLowerCase();
 
-      friend.style.display =
-        name.includes(search)
-          ? "flex"
-          : "none";
 
-    });
+        friend.style.display =
+          name.includes(search)
+            ? "flex"
+            : "none";
+
+      }
+    );
+
 }
 
+
+/* =========================
+   PROFILBILD
+========================= */
 
 function changeProfileImage(event) {
 
   const file =
     event.target.files[0];
 
+
   if (!file) {
     return;
   }
 
+
   const reader =
     new FileReader();
 
+
   reader.onload =
-    event => {
+    function(e) {
 
       document.getElementById(
         "profileImage"
       ).src =
-        event.target.result;
+        e.target.result;
+
 
       localStorage.setItem(
         "profileImage",
-        event.target.result
+        e.target.result
       );
 
     };
 
-  reader.readAsDataURL(file);
-}
 
-
-/*
- * Reset-Link aus der URL erkennen
- */
-
-function checkResetLink() {
-
-  const params =
-    new URLSearchParams(
-      window.location.search
-    );
-
-  const token =
-    params.get("reset");
-
-  if (!token) {
-    return;
-  }
-
-  resetToken = token;
-
-  hideScreens();
-
-  document.getElementById(
-    "resetScreen"
-  ).style.display = "flex";
+  reader.readAsDataURL(
+    file
+  );
 
 }
 
+
+/* =========================
+   ENTER SENDEN
+========================= */
 
 document
-  .getElementById("messageInput")
+  .getElementById(
+    "messageInput"
+  )
   .addEventListener(
     "keydown",
     event => {
 
-      if (event.key === "Enter") {
+      if (
+        event.key ===
+        "Enter"
+      ) {
+
         sendMessage();
+
       }
 
     }
   );
 
 
+/* =========================
+   GESPEICHERTES BILD
+========================= */
+
 const savedImage =
   localStorage.getItem(
     "profileImage"
   );
+
 
 if (savedImage) {
 
@@ -1683,9 +1783,11 @@ if (savedImage) {
 }
 
 
-connectSocket();
+/* =========================
+   START
+========================= */
 
-checkResetLink();
+connectSocket();
 
 </script>
 
