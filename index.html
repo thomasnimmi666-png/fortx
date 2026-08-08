@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#111827">
+  <meta name="theme-color" content="#000000">
   <link rel="manifest" href="manifest.json">
 
   <title>Privater Messenger</title>
@@ -16,89 +16,318 @@
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #f3f4f6;
+      background: #000;
+      color: #fff;
+    }
+
+    button,
+    input {
+      font-family: inherit;
     }
 
     header {
+      background: #000;
       padding: 18px;
-      background: #111827;
-      color: white;
       text-align: center;
       font-size: 22px;
       font-weight: bold;
+      border-bottom: 1px solid #222;
     }
 
     #status {
-      padding: 10px;
+      padding: 8px;
       text-align: center;
-      background: #e5e7eb;
+      background: #080808;
+      color: #aaa;
+      font-size: 13px;
+    }
+
+    .page {
+      padding: 16px;
+    }
+
+    .profile {
+      text-align: center;
+      padding: 20px 10px 25px;
+      border-bottom: 1px solid #222;
+    }
+
+    #profileImage {
+      width: 95px;
+      height: 95px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #222;
+      display: block;
+      margin: 0 auto 12px;
+      border: 2px solid #333;
+    }
+
+    #username {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    .darkButton {
+      background: #1c1c1c;
+      color: white;
+      border: 1px solid #333;
+      border-radius: 20px;
+      padding: 10px 16px;
+      cursor: pointer;
+    }
+
+    #profileFile {
+      display: none;
+    }
+
+    #search {
+      width: 100%;
+      padding: 13px 16px;
+      margin: 18px 0;
+      background: #151515;
+      color: white;
+      border: 1px solid #333;
+      border-radius: 25px;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .friend {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 13px;
+      margin-bottom: 8px;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 15px;
+      cursor: pointer;
+    }
+
+    .friend:hover {
+      background: #181818;
+    }
+
+    .friendAvatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #222;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    .friendName {
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .lastMessage {
+      margin-top: 4px;
+      color: #888;
       font-size: 14px;
     }
 
+    #chatPage {
+      display: none;
+      height: calc(100vh - 90px);
+      flex-direction: column;
+    }
+
+    #chatHeader {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid #222;
+    }
+
+    #backButton {
+      background: none;
+      color: white;
+      border: none;
+      font-size: 27px;
+      cursor: pointer;
+    }
+
+    #chatTitle {
+      font-weight: bold;
+      font-size: 18px;
+    }
+
     #messages {
-      height: calc(100vh - 150px);
+      flex: 1;
       overflow-y: auto;
       padding: 15px;
     }
 
     .message {
       max-width: 80%;
+      width: fit-content;
       padding: 10px 14px;
       margin: 8px 0;
-      border-radius: 14px;
-      background: white;
-      word-wrap: break-word;
+      border-radius: 15px;
+      background: #181818;
+      border: 1px solid #292929;
+      word-break: break-word;
     }
 
     .mine {
       margin-left: auto;
-      background: #dbeafe;
+      background: #252525;
     }
 
     #inputArea {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
       display: flex;
       gap: 8px;
       padding: 10px;
-      background: white;
-      border-top: 1px solid #ddd;
+      border-top: 1px solid #222;
+      background: #000;
     }
 
     #messageInput {
       flex: 1;
       padding: 12px;
-      border: 1px solid #ccc;
-      border-radius: 20px;
+      background: #151515;
+      color: white;
+      border: 1px solid #333;
+      border-radius: 22px;
       font-size: 16px;
+      outline: none;
     }
 
-    button {
-      padding: 12px 18px;
+    #sendButton {
+      padding: 12px 17px;
       border: none;
-      border-radius: 20px;
-      background: #111827;
-      color: white;
-      font-size: 16px;
+      border-radius: 22px;
+      background: white;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .sectionTitle {
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 20px;
     }
   </style>
 </head>
 
 <body>
 
-  <header>
-    🔐 Privater Messenger
-  </header>
+<header>
+  🔐 Privater Messenger
+</header>
 
-  <div id="status">
-    🔄 Verbindung wird hergestellt...
+<div id="status">
+  🔄 Verbindung wird hergestellt...
+</div>
+
+<!-- STARTSEITE -->
+
+<div id="homePage" class="page">
+
+  <div class="profile">
+
+    <img
+      id="profileImage"
+      src=""
+      alt="Profilbild"
+    >
+
+    <div id="username">
+      Dein Name
+    </div>
+
+    <button
+      class="darkButton"
+      onclick="document.getElementById('profileFile').click()"
+    >
+      🖼️ Profilbild ändern
+    </button>
+
+    <input
+      id="profileFile"
+      type="file"
+      accept="image/*"
+      onchange="changeProfileImage(event)"
+    >
+
+  </div>
+
+  <div class="sectionTitle">
+    💬 Deine Freunde
+  </div>
+
+  <input
+    id="search"
+    type="text"
+    placeholder="🔎 Freunde suchen..."
+    oninput="searchFriends()"
+  >
+
+  <div id="friends">
+
+    <div class="friend" onclick="openChat('Max')">
+      <div class="friendAvatar">👤</div>
+
+      <div>
+        <div class="friendName">Max</div>
+        <div class="lastMessage">Hey 👋</div>
+      </div>
+    </div>
+
+    <div class="friend" onclick="openChat('Anna')">
+      <div class="friendAvatar">👩</div>
+
+      <div>
+        <div class="friendName">Anna</div>
+        <div class="lastMessage">Bis später!</div>
+      </div>
+    </div>
+
+    <div class="friend" onclick="openChat('Leon')">
+      <div class="friendAvatar">👦</div>
+
+      <div>
+        <div class="friendName">Leon</div>
+        <div class="lastMessage">Alles klar 👍</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- CHAT -->
+
+<div id="chatPage">
+
+  <div id="chatHeader">
+
+    <button
+      id="backButton"
+      onclick="closeChat()"
+    >
+      ←
+    </button>
+
+    <div id="chatTitle">
+      Chat
+    </div>
+
   </div>
 
   <div id="messages"></div>
 
   <div id="inputArea">
+
     <input
       id="messageInput"
       type="text"
@@ -106,82 +335,336 @@
       autocomplete="off"
     >
 
-    <button onclick="sendMessage()">
+    <button
+      id="sendButton"
+      onclick="sendMessage()"
+    >
       Senden
     </button>
+
   </div>
 
-  <script>
-    const messages = document.getElementById("messages");
-    const status = document.getElementById("status");
+</div>
 
-    const socket = new WebSocket("wss://fortx.onrender.com");
+<script>
 
-    socket.onopen = () => {
-      status.textContent = "🟢 Server verbunden";
-    };
+  let currentFriend = null;
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+  const socket = new WebSocket(
+    "wss://fortx.onrender.com"
+  );
 
-        if (data.type === "system") {
-          status.textContent = data.text;
-          return;
-        }
+  socket.onopen = () => {
 
-        addMessage(data.text);
-      } catch (error) {
-        console.error("Nachricht konnte nicht gelesen werden:", error);
+    document.getElementById(
+      "status"
+    ).textContent =
+      "🟢 Server verbunden";
+
+  };
+
+  socket.onmessage = (event) => {
+
+    try {
+
+      const data =
+        JSON.parse(event.data);
+
+      if (
+        data.type === "system"
+      ) {
+
+        document.getElementById(
+          "status"
+        ).textContent =
+          data.text;
+
+        return;
+
       }
-    };
 
-    socket.onerror = () => {
-      status.textContent = "🔴 Server nicht erreichbar";
-    };
+      if (
+        data.type === "message" &&
+        data.to === currentFriend
+      ) {
 
-    socket.onclose = () => {
-      status.textContent = "🔴 Verbindung getrennt";
-    };
+        addMessage(
+          data.text,
+          false
+        );
 
-    function addMessage(text) {
-      const message = document.createElement("div");
-      message.className = "message";
-      message.textContent = text;
+      }
 
-      messages.appendChild(message);
-      messages.scrollTop = messages.scrollHeight;
+    } catch (error) {
+
+      console.log(error);
+
     }
 
-    function sendMessage() {
-      const input = document.getElementById("messageInput");
-      const text = input.value.trim();
+  };
 
-      if (!text) {
-        return;
-      }
+  socket.onerror = () => {
 
-      if (socket.readyState !== WebSocket.OPEN) {
-        status.textContent = "🔴 Keine Serververbindung";
-        return;
-      }
+    document.getElementById(
+      "status"
+    ).textContent =
+      "🔴 Server nicht erreichbar";
 
-      socket.send(JSON.stringify({
-        type: "message",
-        text: text
-      }));
+  };
 
-      input.value = "";
+  socket.onclose = () => {
+
+    document.getElementById(
+      "status"
+    ).textContent =
+      "🔴 Verbindung getrennt";
+
+  };
+
+
+  function openChat(friend) {
+
+    currentFriend =
+      friend;
+
+    document.getElementById(
+      "homePage"
+    ).style.display =
+      "none";
+
+    document.getElementById(
+      "chatPage"
+    ).style.display =
+      "flex";
+
+    document.getElementById(
+      "chatTitle"
+    ).textContent =
+      friend;
+
+    document.getElementById(
+      "messages"
+    ).innerHTML =
+      "";
+
+  }
+
+
+  function closeChat() {
+
+    currentFriend =
+      null;
+
+    document.getElementById(
+      "chatPage"
+    ).style.display =
+      "none";
+
+    document.getElementById(
+      "homePage"
+    ).style.display =
+      "block";
+
+  }
+
+
+  function addMessage(
+    text,
+    mine
+  ) {
+
+    const message =
+      document.createElement(
+        "div"
+      );
+
+    message.className =
+      mine
+        ? "message mine"
+        : "message";
+
+    message.textContent =
+      text;
+
+    document.getElementById(
+      "messages"
+    ).appendChild(
+      message
+    );
+
+    const messages =
+      document.getElementById(
+        "messages"
+      );
+
+    messages.scrollTop =
+      messages.scrollHeight;
+
+  }
+
+
+  function sendMessage() {
+
+    const input =
+      document.getElementById(
+        "messageInput"
+      );
+
+    const text =
+      input.value.trim();
+
+    if (!text) {
+      return;
     }
 
-    document
-      .getElementById("messageInput")
-      .addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
+
+      document.getElementById(
+        "status"
+      ).textContent =
+        "🔴 Keine Serververbindung";
+
+      return;
+
+    }
+
+    socket.send(
+      JSON.stringify({
+
+        type:
+          "message",
+
+        to:
+          currentFriend,
+
+        text:
+          text
+
+      })
+    );
+
+    addMessage(
+      text,
+      true
+    );
+
+    input.value =
+      "";
+
+  }
+
+
+  function searchFriends() {
+
+    const search =
+      document.getElementById(
+        "search"
+      )
+      .value
+      .toLowerCase();
+
+    const friends =
+      document.querySelectorAll(
+        ".friend"
+      );
+
+    friends.forEach(
+      function(friend) {
+
+        const name =
+          friend
+            .querySelector(
+              ".friendName"
+            )
+            .textContent
+            .toLowerCase();
+
+        friend.style.display =
+          name.includes(search)
+            ? "flex"
+            : "none";
+
+      }
+    );
+
+  }
+
+
+  function changeProfileImage(
+    event
+  ) {
+
+    const file =
+      event.target.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader =
+      new FileReader();
+
+    reader.onload =
+      function(e) {
+
+        document.getElementById(
+          "profileImage"
+        ).src =
+          e.target.result;
+
+        localStorage.setItem(
+          "profileImage",
+          e.target.result
+        );
+
+      };
+
+    reader.readAsDataURL(
+      file
+    );
+
+  }
+
+
+  const savedImage =
+    localStorage.getItem(
+      "profileImage"
+    );
+
+  if (savedImage) {
+
+    document.getElementById(
+      "profileImage"
+    ).src =
+      savedImage;
+
+  }
+
+
+  document
+    .getElementById(
+      "messageInput"
+    )
+    .addEventListener(
+      "keydown",
+      function(event) {
+
+        if (
+          event.key ===
+          "Enter"
+        ) {
+
           sendMessage();
+
         }
-      });
-  </script>
+
+      }
+    );
+
+</script>
 
 </body>
 </html>
