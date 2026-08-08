@@ -5,51 +5,103 @@ const crypto = require("crypto");
 const PORT = process.env.PORT || 3000;
 const ACCESS_CODE = process.env.ACCESS_CODE;
 
+const GROUP_ADMINS = [
+  "saftpresse040",
+  "thcliquide"
+];
+
 const users = new Map();
 const friends = new Map();
+const groupMessages = [];
 
-function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
-  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(password, stored) {
-  const [salt, originalHash] = stored.split(":");
-
-  const hash = crypto.scryptSync(password, salt, 64);
-
-  return crypto.timingSafeEqual(
-    hash,
-    Buffer.from(originalHash, "hex")
-  );
-}
+const MESSAGE_LIFETIME = 24 * 60 * 60 * 1000;
 
 function send(socket, data) {
-  if (socket.readyState === WebSocket.OPEN) {
+  if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(data));
   }
 }
 
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+
+  const hash = crypto
+    .scryptSync(password, salt, 64)
+    .toString("hex");
+
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  try {
+    const [salt, originalHash] = stored.split(":");
+
+    const hash = crypto.scryptSync(
+      password,
+      salt,
+      64
+    );
+
+    return crypto.timingSafeEqual(
+      hash,
+      Buffer.from(originalHash, "hex")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function broadcastGroup(data) {
+  for (const client of wss.clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      send(client, data);
+    }
+  }
+}
+
+function cleanGroupMessages() {
+  const limit =
+    Date.now() - MESSAGE_LIFETIME;
+
+  while (
+    groupMessages.length > 0 &&
+    groupMessages[0].time < limit
+  ) {
+    groupMessages.shift();
+  }
+}
+
 const server = http.createServer((req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "*"
+  );
 
   if (req.url === "/health") {
+
     res.writeHead(200, {
-      "Content-Type": "application/json"
+      "Content-Type":
+        "application/json"
     });
 
-    res.end(JSON.stringify({
-      status: "ok"
-    }));
+    res.end(
+      JSON.stringify({
+        status: "ok"
+      })
+    );
 
     return;
   }
 
   res.writeHead(200, {
-    "Content-Type": "text/plain; charset=utf-8"
+    "Content-Type":
+      "text/plain; charset=utf-8"
   });
 
-  res.end("Privater Messenger Server läuft! 🔐");
+  res.end(
+    "Privater Messenger Server läuft! 🔐"
+  );
 });
 
 const wss = new WebSocket.Server({
@@ -64,9 +116,13 @@ wss.on("connection", (socket) => {
 
     try {
 
-      const data = JSON.parse(raw.toString());
+      const data =
+        JSON.parse(raw.toString());
 
-      // REGISTRIEREN
+      /*
+       * REGISTRIERUNG
+       */
+
       if (data.type === "register") {
 
         const username =
@@ -83,7 +139,8 @@ wss.on("connection", (socket) => {
         if (!ACCESS_CODE) {
           send(socket, {
             type: "error",
-            text: "ACCESS_CODE ist auf dem Server noch nicht eingerichtet."
+            text:
+              "Server-Zugangscode fehlt."
           });
           return;
         }
@@ -91,31 +148,20 @@ wss.on("connection", (socket) => {
         if (accessCode !== ACCESS_CODE) {
           send(socket, {
             type: "error",
-            text: "Falscher Zugangscode."
+            text:
+              "Falscher Zugangscode."
           });
           return;
         }
 
-        if (!username || !password) {
+        if (
+          username.length < 3 ||
+          password.length < 8
+        ) {
           send(socket, {
             type: "error",
-            text: "Benutzername und Passwort fehlen."
-          });
-          return;
-        }
-
-        if (username.length < 3) {
-          send(socket, {
-            type: "error",
-            text: "Der Benutzername muss mindestens 3 Zeichen haben."
-          });
-          return;
-        }
-
-        if (password.length < 8) {
-          send(socket, {
-            type: "error",
-            text: "Das Passwort muss mindestens 8 Zeichen haben."
+            text:
+              "Benutzername mindestens 3 Zeichen und Passwort mindestens 8 Zeichen."
           });
           return;
         }
@@ -123,19 +169,25 @@ wss.on("connection", (socket) => {
         if (users.has(username)) {
           send(socket, {
             type: "error",
-            text: "Dieser Benutzername ist bereits vergeben."
+            text:
+              "Benutzername ist bereits vergeben."
           });
           return;
         }
 
         users.set(username, {
-          passwordHash: hashPassword(password),
-          socket
+          passwordHash:
+            hashPassword(password),
+          socket: socket
         });
 
-        friends.set(username, new Set());
+        friends.set(
+          username,
+          new Set()
+        );
 
-        socket.username = username;
+        socket.username =
+          username;
 
         send(socket, {
           type: "registered",
@@ -143,13 +195,16 @@ wss.on("connection", (socket) => {
         });
 
         console.log(
-          `👤 Neuer Benutzer: ${username}`
+          `👤 Registriert: ${username}`
         );
 
         return;
       }
 
-      // EINLOGGEN
+      /*
+       * LOGIN
+       */
+
       if (data.type === "login") {
 
         const username =
@@ -163,24 +218,26 @@ wss.on("connection", (socket) => {
         const user =
           users.get(username);
 
-        if (!user) {
+        if (
+          !user ||
+          !verifyPassword(
+            password,
+            user.passwordHash
+          )
+        ) {
           send(socket, {
             type: "error",
-            text: "Benutzername oder Passwort falsch."
+            text:
+              "Benutzername oder Passwort falsch."
           });
           return;
         }
 
-        if (!verifyPassword(password, user.passwordHash)) {
-          send(socket, {
-            type: "error",
-            text: "Benutzername oder Passwort falsch."
-          });
-          return;
-        }
+        user.socket =
+          socket;
 
-        user.socket = socket;
-        socket.username = username;
+        socket.username =
+          username;
 
         send(socket, {
           type: "loggedIn",
@@ -194,8 +251,100 @@ wss.on("connection", (socket) => {
         return;
       }
 
-      // FREUND HINZUFÜGEN
-      if (data.type === "addFriend") {
+      /*
+       * GRUPPENCHAT LADEN
+       */
+
+      if (
+        data.type ===
+        "getGroupMessages"
+      ) {
+
+        if (!socket.username) {
+          return;
+        }
+
+        cleanGroupMessages();
+
+        send(socket, {
+          type:
+            "groupMessages",
+          messages:
+            groupMessages
+        });
+
+        return;
+      }
+
+      /*
+       * GRUPPENCHAT NACHRICHT
+       */
+
+      if (
+        data.type ===
+        "groupMessage"
+      ) {
+
+        const username =
+          socket.username;
+
+        if (!username) {
+          return;
+        }
+
+        cleanGroupMessages();
+
+        if (
+          !GROUP_ADMINS.includes(
+            username
+          )
+        ) {
+
+          send(socket, {
+            type: "error",
+            text:
+              "Du darfst im Gruppenchat nur lesen."
+          });
+
+          return;
+        }
+
+        const text =
+          String(
+            data.text || ""
+          ).trim();
+
+        if (!text) {
+          return;
+        }
+
+        const message = {
+          username,
+          text,
+          time: Date.now()
+        };
+
+        groupMessages.push(
+          message
+        );
+
+        broadcastGroup({
+          type:
+            "groupMessage",
+          message
+        });
+
+        return;
+      }
+
+      /*
+       * FREUND HINZUFÜGEN
+       */
+
+      if (
+        data.type ===
+        "addFriend"
+      ) {
 
         const from =
           socket.username;
@@ -209,42 +358,54 @@ wss.on("connection", (socket) => {
           return;
         }
 
-        if (!users.has(to)) {
+        if (from === to) {
+
           send(socket, {
             type: "error",
-            text: "Benutzer nicht gefunden."
+            text:
+              "Du kannst dich nicht selbst hinzufügen."
           });
+
           return;
         }
 
-        if (from === to) {
+        if (!users.has(to)) {
+
           send(socket, {
             type: "error",
-            text: "Du kannst dich nicht selbst hinzufügen."
+            text:
+              "Benutzer nicht gefunden."
           });
+
           return;
         }
 
         const target =
           users.get(to).socket;
 
-        if (target) {
-          send(target, {
-            type: "friendRequest",
-            from
-          });
-        }
+        send(target, {
+          type:
+            "friendRequest",
+          from
+        });
 
         send(socket, {
-          type: "requestSent",
+          type:
+            "requestSent",
           to
         });
 
         return;
       }
 
-      // NACHRICHT
-      if (data.type === "message") {
+      /*
+       * PRIVATE NACHRICHT
+       */
+
+      if (
+        data.type ===
+        "message"
+      ) {
 
         const from =
           socket.username;
@@ -255,32 +416,39 @@ wss.on("connection", (socket) => {
             .toLowerCase();
 
         const text =
-          String(data.text || "");
+          String(
+            data.text || ""
+          ).trim();
 
         if (!from || !to || !text) {
           return;
         }
 
-        const targetUser =
+        const target =
           users.get(to);
 
-        if (!targetUser) {
+        if (!target) {
+
           send(socket, {
             type: "error",
-            text: "Benutzer nicht gefunden."
+            text:
+              "Benutzer nicht gefunden."
           });
+
           return;
         }
 
-        send(targetUser.socket, {
-          type: "message",
+        send(target.socket, {
+          type:
+            "message",
           from,
           to,
           text
         });
 
         send(socket, {
-          type: "message",
+          type:
+            "message",
           from,
           to,
           text
@@ -298,11 +466,10 @@ wss.on("connection", (socket) => {
 
       send(socket, {
         type: "error",
-        text: "Serverfehler."
+        text:
+          "Serverfehler."
       });
-
     }
-
   });
 
   socket.on("close", () => {
@@ -310,7 +477,9 @@ wss.on("connection", (socket) => {
     if (socket.username) {
 
       const user =
-        users.get(socket.username);
+        users.get(
+          socket.username
+        );
 
       if (user) {
         user.socket = null;
@@ -319,12 +488,18 @@ wss.on("connection", (socket) => {
       console.log(
         `📱 ${socket.username} getrennt`
       );
-
     }
-
   });
-
 });
+
+/*
+ * Alle 10 Minuten alte
+ * Gruppenchat-Nachrichten löschen.
+ */
+
+setInterval(() => {
+  cleanGroupMessages();
+}, 10 * 60 * 1000);
 
 server.listen(
   PORT,
