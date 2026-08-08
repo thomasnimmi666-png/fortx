@@ -118,7 +118,23 @@ Senden
     }
   }
 
-  checkServer();
+  checkServer();async function updateStatus() {
+  const status = document.getElementById("status");
+
+  try {
+    const response = await fetch("https://fortx.onrender.com");
+
+    if (response.ok) {
+      status.textContent = "🟢 Server verbunden";
+    } else {
+      status.textContent = "🔴 Server antwortet nicht";
+    }
+  } catch (error) {
+    status.textContent = "🔴 Server nicht erreichbar";
+  }
+}
+
+updateStatus();
 
   function sendMessage() {
     const input = document.getElementById("messageInput");
