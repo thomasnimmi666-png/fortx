@@ -103,26 +103,40 @@ Senden
 </div>
 
 </div>
-
 <script>
-function sendMessage() {
-const input = document.getElementById("messageInput");
-const messages = document.getElementById("messages");
+  async function checkServer() {
+    try {
+      const response = await fetch("https://fortx.onrender.com");
+      
+      if (response.ok) {
+        console.log("🟢 Server verbunden");
+      }
+    } catch (error) {
+      console.log("🔴 Server nicht erreichbar");
+    }
+  }
 
-if (input.value.trim() === "") {
-return;
-}
+  checkServer();
 
-const message = document.createElement("div");
-message.className = "message mine";
-message.textContent = input.value;
+  function sendMessage() {
+    const input = document.getElementById("messageInput");
+    const messages = document.getElementById("messages");
 
-messages.appendChild(message);
+    if (input.value.trim() === "") {
+      return;
+    }
 
-input.value = "";
-messages.scrollTop = messages.scrollHeight;
-}
+    const message = document.createElement("div");
+    message.className = "message mine";
+    message.textContent = input.value;
+
+    messages.appendChild(message);
+
+    input.value = "";
+    messages.scrollTop = messages.scrollHeight;
+  }
 </script>
+
 
 </body>
 </html>
