@@ -1,161 +1,187 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Privater Messenger</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#222222">
-<style>
-body {
-margin: 0;
-font-family: Arial, sans-serif;
-background: #f2f2f2;
-}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <link rel="manifest" href="manifest.json">
 
-.app {
-max-width: 500px;
-height: 100vh;
-margin: auto;
-background: white;
-display: flex;
-flex-direction: column;
-}
+  <title>Privater Messenger</title>
 
-header {
-background: #222;
-color: white;
-padding: 18px;
-font-size: 20px;
-font-weight: bold;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-.messages {
-flex: 1;
-padding: 15px;
-overflow-y: auto;
-}
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+    }
 
-.message {
-background: #e5e5e5;
-padding: 10px 14px;
-border-radius: 12px;
-margin-bottom: 10px;
-width: fit-content;
-max-width: 75%;
-}
+    header {
+      padding: 18px;
+      background: #111827;
+      color: white;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
 
-.mine {
-background: #222;
-color: white;
-margin-left: auto;
-}
+    #status {
+      padding: 10px;
+      text-align: center;
+      background: #e5e7eb;
+      font-size: 14px;
+    }
 
-.input-area {
-display: flex;
-padding: 10px;
-border-top: 1px solid #ddd;
-}
+    #messages {
+      height: calc(100vh - 150px);
+      overflow-y: auto;
+      padding: 15px;
+    }
 
-input {
-flex: 1;
-padding: 12px;
-border: 1px solid #ccc;
-border-radius: 20px;
-font-size: 16px;
-}
+    .message {
+      max-width: 80%;
+      padding: 10px 14px;
+      margin: 8px 0;
+      border-radius: 14px;
+      background: white;
+      word-wrap: break-word;
+    }
 
-button {
-margin-left: 8px;
-padding: 12px 18px;
-border: none;
-border-radius: 20px;
-background: #222;
-color: white;
-}
-</style>
+    .mine {
+      margin-left: auto;
+      background: #dbeafe;
+    }
+
+    #inputArea {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      background: white;
+      border-top: 1px solid #ddd;
+    }
+
+    #messageInput {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 12px 18px;
+      border: none;
+      border-radius: 20px;
+      background: #111827;
+      color: white;
+      font-size: 16px;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="app">
+  <header>
+    🔐 Privater Messenger
+  </header>
 
-<header>
-🔐 Privater Messenger
-</header>
-<div id="status" style="padding:10px; text-align:center;">
-  🔄 Server wird geprüft...
-</div>
-<div class="messages" id="messages">
-<div class="message">
-Willkommen bei unserem Messenger!
-</div>
-</div>
+  <div id="status">
+    🔄 Verbindung wird hergestellt...
+  </div>
 
-<div class="input-area">
-<input
-id="messageInput"
-type="text"
-placeholder="Nachricht schreiben..."
->
+  <div id="messages"></div>
 
-<button onclick="sendMessage()">
-Senden
-</button>
-</div>
+  <div id="inputArea">
+    <input
+      id="messageInput"
+      type="text"
+      placeholder="Nachricht schreiben..."
+      autocomplete="off"
+    >
 
-</div>
-<script>
-  async function checkServer() {
-    try {
-      const response = await fetch("https://fortx.onrender.com");
-      
-      if (response.ok) {
-        console.log("🟢 Server verbunden");
-      }
-    } catch (error) {
-      console.log("🔴 Server nicht erreichbar");
-    }
-  }
+    <button onclick="sendMessage()">
+      Senden
+    </button>
+  </div>
 
-  checkServer();async function updateStatus() {
-  const status = document.getElementById("status");
-
-  try {
-    const response = await fetch("https://fortx.onrender.com");
-
-    if (response.ok) {
-      status.textContent = "🟢 Server verbunden";
-    } else {
-      status.textContent = "🔴 Server antwortet nicht";
-    }
-  } catch (error) {
-    status.textContent = "🔴 Server nicht erreichbar";
-  }
-}
-
-updateStatus();
-
-  function sendMessage() {
-    const input = document.getElementById("messageInput");
+  <script>
     const messages = document.getElementById("messages");
+    const status = document.getElementById("status");
 
-    if (input.value.trim() === "") {
-      return;
+    const socket = new WebSocket("wss://fortx.onrender.com");
+
+    socket.onopen = () => {
+      status.textContent = "🟢 Server verbunden";
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "system") {
+          status.textContent = data.text;
+          return;
+        }
+
+        addMessage(data.text);
+      } catch (error) {
+        console.error("Nachricht konnte nicht gelesen werden:", error);
+      }
+    };
+
+    socket.onerror = () => {
+      status.textContent = "🔴 Server nicht erreichbar";
+    };
+
+    socket.onclose = () => {
+      status.textContent = "🔴 Verbindung getrennt";
+    };
+
+    function addMessage(text) {
+      const message = document.createElement("div");
+      message.className = "message";
+      message.textContent = text;
+
+      messages.appendChild(message);
+      messages.scrollTop = messages.scrollHeight;
     }
 
-    const message = document.createElement("div");
-    message.className = "message mine";
-    message.textContent = input.value;
+    function sendMessage() {
+      const input = document.getElementById("messageInput");
+      const text = input.value.trim();
 
-    messages.appendChild(message);
+      if (!text) {
+        return;
+      }
 
-    input.value = "";
-    messages.scrollTop = messages.scrollHeight;
-  }
-  
-</script>
+      if (socket.readyState !== WebSocket.OPEN) {
+        status.textContent = "🔴 Keine Serververbindung";
+        return;
+      }
 
+      socket.send(JSON.stringify({
+        type: "message",
+        text: text
+      }));
+
+      input.value = "";
+    }
+
+    document
+      .getElementById("messageInput")
+      .addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          sendMessage();
+        }
+      });
+  </script>
 
 </body>
 </html>
