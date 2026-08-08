@@ -264,7 +264,36 @@
   <div class="sectionTitle">
     💬 Deine Freunde
   </div>
+<div style="display:flex; gap:8px; margin-top:15px;">
+  <input
+    id="friendUsername"
+    type="text"
+    placeholder="Benutzername..."
+    style="
+      flex:1;
+      padding:12px;
+      background:#151515;
+      color:white;
+      border:1px solid #333;
+      border-radius:20px;
+      outline:none;
+    "
+  >
 
+  <button
+    onclick="addFriend()"
+    style="
+      padding:12px 16px;
+      background:white;
+      color:black;
+      border:none;
+      border-radius:20px;
+      font-weight:bold;
+    "
+  >
+    + Freund
+  </button>
+</div>
   <input
     id="search"
     type="text"
@@ -663,7 +692,29 @@
 
       }
     );
+function addFriend() {
+  const input = document.getElementById("friendUsername");
+  const username = input.value.trim().toLowerCase();
 
+  if (!username) {
+    alert("Bitte einen Benutzernamen eingeben.");
+    return;
+  }
+
+  if (socket.readyState !== WebSocket.OPEN) {
+    alert("Keine Serververbindung.");
+    return;
+  }
+
+  socket.send(JSON.stringify({
+    type: "addFriend",
+    username: username
+  }));
+
+  input.value = "";
+
+  alert("Freundschaftsanfrage gesendet.");
+}
 </script>
 
 </body>
