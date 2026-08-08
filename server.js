@@ -1,5 +1,11 @@
 const http = require("http");
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
+
 const server = http.createServer((req, res) => {
 res.writeHead(200, {
 "Content-Type": "text/plain; charset=utf-8"
