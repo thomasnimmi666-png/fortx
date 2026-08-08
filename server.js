@@ -1,18 +1,22 @@
 const http = require("http");
 const WebSocket = require("ws");
 const crypto = require("crypto");
+const { Pool } = require("pg");
 
 const PORT = process.env.PORT || 3000;
 const ACCESS_CODE = process.env.ACCESS_CODE;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
 const GROUP_ADMINS = [
   "saftpresse040",
   "thcliquide"
 ];
-
-const users = new Map();
-const friends = new Map();
-const groupMessages = [];
 
 const MESSAGE_LIFETIME = 24 * 60 * 60 * 1000;
 
@@ -51,38 +55,57 @@ function verifyPassword(password, stored) {
   }
 }
 
-function broadcastGroup(data) {
+async function initDatabase() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      username TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id SERIAL PRIMARY KEY,
+      sender TEXT NOT NULL,
+      receiver TEXT,
+      text TEXT NOT NULL,
+      is_group BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  console.log("🗄️ Datenbank bereit");
+}
+
+async function cleanOldGroupMessages() {
+  await pool.query(`
+    DELETE FROM messages
+    WHERE is_group = TRUE
+    AND created_at < NOW() - INTERVAL '24 hours'
+  `);
+}
+
+async function broadcastGroup(data) {
   for (const client of wss.clients) {
-    if (client.readyState === WebSocket.OPEN) {
+    if (
+      client.readyState === WebSocket.OPEN &&
+      client.username
+    ) {
       send(client, data);
     }
   }
 }
 
-function cleanGroupMessages() {
-  const limit =
-    Date.now() - MESSAGE_LIFETIME;
-
-  while (
-    groupMessages.length > 0 &&
-    groupMessages[0].time < limit
-  ) {
-    groupMessages.shift();
-  }
-}
-
 const server = http.createServer((req, res) => {
-
   res.setHeader(
     "Access-Control-Allow-Origin",
     "*"
   );
 
   if (req.url === "/health") {
-
     res.writeHead(200, {
-      "Content-Type":
-        "application/json"
+      "Content-Type": "application/json"
     });
 
     res.end(
@@ -109,13 +132,10 @@ const wss = new WebSocket.Server({
 });
 
 wss.on("connection", (socket) => {
-
   console.log("📱 Gerät verbunden");
 
-  socket.on("message", (raw) => {
-
+  socket.on("message", async (raw) => {
     try {
-
       const data =
         JSON.parse(raw.toString());
 
@@ -124,7 +144,6 @@ wss.on("connection", (socket) => {
        */
 
       if (data.type === "register") {
-
         const username =
           String(data.username || "")
             .trim()
@@ -166,7 +185,13 @@ wss.on("connection", (socket) => {
           return;
         }
 
-        if (users.has(username)) {
+        const existing =
+          await pool.query(
+            "SELECT username FROM users WHERE username = $1",
+            [username]
+          );
+
+        if (existing.rows.length > 0) {
           send(socket, {
             type: "error",
             text:
@@ -175,19 +200,19 @@ wss.on("connection", (socket) => {
           return;
         }
 
-        users.set(username, {
-          passwordHash:
-            hashPassword(password),
-          socket: socket
-        });
-
-        friends.set(
-          username,
-          new Set()
+        await pool.query(
+          `
+          INSERT INTO users
+          (username, password_hash)
+          VALUES ($1, $2)
+          `,
+          [
+            username,
+            hashPassword(password)
+          ]
         );
 
-        socket.username =
-          username;
+        socket.username = username;
 
         send(socket, {
           type: "registered",
@@ -206,7 +231,6 @@ wss.on("connection", (socket) => {
        */
 
       if (data.type === "login") {
-
         const username =
           String(data.username || "")
             .trim()
@@ -215,14 +239,21 @@ wss.on("connection", (socket) => {
         const password =
           String(data.password || "");
 
-        const user =
-          users.get(username);
+        const result =
+          await pool.query(
+            `
+            SELECT username, password_hash
+            FROM users
+            WHERE username = $1
+            `,
+            [username]
+          );
 
         if (
-          !user ||
+          result.rows.length === 0 ||
           !verifyPassword(
             password,
-            user.passwordHash
+            result.rows[0].password_hash
           )
         ) {
           send(socket, {
@@ -233,11 +264,7 @@ wss.on("connection", (socket) => {
           return;
         }
 
-        user.socket =
-          socket;
-
-        socket.username =
-          username;
+        socket.username = username;
 
         send(socket, {
           type: "loggedIn",
@@ -259,18 +286,26 @@ wss.on("connection", (socket) => {
         data.type ===
         "getGroupMessages"
       ) {
-
         if (!socket.username) {
           return;
         }
 
-        cleanGroupMessages();
+        await cleanOldGroupMessages();
+
+        const result =
+          await pool.query(`
+            SELECT
+              sender AS username,
+              text,
+              EXTRACT(EPOCH FROM created_at) * 1000 AS time
+            FROM messages
+            WHERE is_group = TRUE
+            ORDER BY created_at ASC
+          `);
 
         send(socket, {
-          type:
-            "groupMessages",
-          messages:
-            groupMessages
+          type: "groupMessages",
+          messages: result.rows
         });
 
         return;
@@ -284,7 +319,6 @@ wss.on("connection", (socket) => {
         data.type ===
         "groupMessage"
       ) {
-
         const username =
           socket.username;
 
@@ -292,14 +326,11 @@ wss.on("connection", (socket) => {
           return;
         }
 
-        cleanGroupMessages();
-
         if (
           !GROUP_ADMINS.includes(
             username
           )
         ) {
-
           send(socket, {
             type: "error",
             text:
@@ -310,89 +341,40 @@ wss.on("connection", (socket) => {
         }
 
         const text =
-          String(
-            data.text || ""
-          ).trim();
+          String(data.text || "")
+            .trim();
 
         if (!text) {
           return;
         }
 
+        const result =
+          await pool.query(
+            `
+            INSERT INTO messages
+            (sender, text, is_group)
+            VALUES ($1, $2, TRUE)
+            RETURNING
+              sender,
+              text,
+              EXTRACT(EPOCH FROM created_at) * 1000 AS time
+            `,
+            [username, text]
+          );
+
         const message = {
-          username,
-          text,
-          time: Date.now()
+          username:
+            result.rows[0].sender,
+          text:
+            result.rows[0].text,
+          time:
+            Number(result.rows[0].time)
         };
 
-        groupMessages.push(
-          message
-        );
-
-        broadcastGroup({
+        await broadcastGroup({
           type:
             "groupMessage",
           message
-        });
-
-        return;
-      }
-
-      /*
-       * FREUND HINZUFÜGEN
-       */
-
-      if (
-        data.type ===
-        "addFriend"
-      ) {
-
-        const from =
-          socket.username;
-
-        const to =
-          String(data.username || "")
-            .trim()
-            .toLowerCase();
-
-        if (!from || !to) {
-          return;
-        }
-
-        if (from === to) {
-
-          send(socket, {
-            type: "error",
-            text:
-              "Du kannst dich nicht selbst hinzufügen."
-          });
-
-          return;
-        }
-
-        if (!users.has(to)) {
-
-          send(socket, {
-            type: "error",
-            text:
-              "Benutzer nicht gefunden."
-          });
-
-          return;
-        }
-
-        const target =
-          users.get(to).socket;
-
-        send(target, {
-          type:
-            "friendRequest",
-          from
-        });
-
-        send(socket, {
-          type:
-            "requestSent",
-          to
         });
 
         return;
@@ -406,7 +388,6 @@ wss.on("connection", (socket) => {
         data.type ===
         "message"
       ) {
-
         const from =
           socket.username;
 
@@ -416,49 +397,67 @@ wss.on("connection", (socket) => {
             .toLowerCase();
 
         const text =
-          String(
-            data.text || ""
-          ).trim();
+          String(data.text || "")
+            .trim();
 
         if (!from || !to || !text) {
           return;
         }
 
         const target =
-          users.get(to);
+          await pool.query(
+            `
+            SELECT username
+            FROM users
+            WHERE username = $1
+            `,
+            [to]
+          );
 
-        if (!target) {
-
+        if (target.rows.length === 0) {
           send(socket, {
             type: "error",
             text:
               "Benutzer nicht gefunden."
           });
-
           return;
         }
 
-        send(target.socket, {
-          type:
-            "message",
+        await pool.query(
+          `
+          INSERT INTO messages
+          (sender, receiver, text, is_group)
+          VALUES ($1, $2, $3, FALSE)
+          `,
+          [from, to, text]
+        );
+
+        send(socket, {
+          type: "message",
           from,
           to,
           text
         });
 
-        send(socket, {
-          type:
-            "message",
-          from,
-          to,
-          text
-        });
+        for (const client of wss.clients) {
+          if (
+            client.readyState ===
+              WebSocket.OPEN &&
+            client.username === to
+          ) {
+            send(client, {
+              type: "message",
+              from,
+              to,
+              text
+            });
+          }
+        }
 
         return;
       }
 
     } catch (error) {
-
       console.log(
         "❌ Fehler:",
         error.message
@@ -473,18 +472,7 @@ wss.on("connection", (socket) => {
   });
 
   socket.on("close", () => {
-
     if (socket.username) {
-
-      const user =
-        users.get(
-          socket.username
-        );
-
-      if (user) {
-        user.socket = null;
-      }
-
       console.log(
         `📱 ${socket.username} getrennt`
       );
@@ -493,22 +481,42 @@ wss.on("connection", (socket) => {
 });
 
 /*
- * Alle 10 Minuten alte
- * Gruppenchat-Nachrichten löschen.
+ * Alte Gruppenchat-Nachrichten
+ * regelmäßig löschen.
  */
 
 setInterval(() => {
-  cleanGroupMessages();
+  cleanOldGroupMessages()
+    .catch(error => {
+      console.log(
+        "❌ Aufräumfehler:",
+        error.message
+      );
+    });
 }, 10 * 60 * 1000);
 
-server.listen(
-  PORT,
-  "0.0.0.0",
-  () => {
+/*
+ * Datenbank starten,
+ * danach Server starten.
+ */
 
-    console.log(
-      `🚀 Server läuft auf Port ${PORT}`
+initDatabase()
+  .then(() => {
+    server.listen(
+      PORT,
+      "0.0.0.0",
+      () => {
+        console.log(
+          `🚀 Server läuft auf Port ${PORT}`
+        );
+      }
+    );
+  })
+  .catch(error => {
+    console.error(
+      "❌ Datenbankfehler:",
+      error
     );
 
-  }
-);
+    process.exit(1);
+  });
