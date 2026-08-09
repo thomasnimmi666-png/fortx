@@ -1,24 +1,27 @@
+```js
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
-const WebSocket = require("ws");
 const crypto = require("crypto");
+const WebSocket = require("ws");
 const { Pool } = require("pg");
 
-const PORT = process.env.PORT || 3000;
-const ACCESS_CODE = process.env.ACCESS_CODE || "";
-const APP_URL = process.env.APP_URL || "";
+const PORT = Number(process.env.PORT || 3000);
+const ACCESS_CODE = String(process.env.ACCESS_CODE || "");
+const APP_URL = String(process.env.APP_URL || "");
 
 const GROUP_ADMINS = [
   "saftpresse040",
   "thcliquide"
 ];
 
+function normalizeUsername(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function isAdmin(username) {
   return GROUP_ADMINS.includes(
-    String(username || "")
-      .trim()
-      .toLowerCase()
+    normalizeUsername(username)
   );
 }
 
@@ -67,10 +70,7 @@ function verifyPassword(password, stored) {
 
     return (
       hash.length === original.length &&
-      crypto.timingSafeEqual(
-        hash,
-        original
-      )
+      crypto.timingSafeEqual(hash, original)
     );
   } catch {
     return false;
@@ -84,98 +84,7 @@ function hashToken(token) {
     .digest("hex");
 }
 
-function sanitizeImageData(data) {
-  if (
-    typeof data !== "string" ||
-    !data.startsWith("data:image/")
-  ) {
-    return null;
-  }
-
-  const match = data.match(
-    /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
-  );
-
-  if (!match) {
-    return null;
-  }
-
-  const mime = match[1].toLowerCase();
-
-  const allowed = [
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp"
-  ];
-
-  if (!allowed.includes(mime)) {
-    return null;
-  }
-
-  const buffer = Buffer.from(
-    match[2],
-    "base64"
-  );
-
-  if (buffer.length > 8 * 1024 * 1024) {
-    return null;
-  }
-
-  return {
-    mime,
-    buffer
-  };
-}
-
-function saveImage(imageData) {
-  const parsed =
-    sanitizeImageData(imageData);
-
-  if (!parsed) {
-    throw new Error(
-      "Ungültiges oder zu großes Bild."
-    );
-  }
-
-  const extension =
-    parsed.mime === "image/jpeg"
-      ? ".jpg"
-      : parsed.mime === "image/png"
-        ? ".png"
-        : parsed.mime === "image/gif"
-          ? ".gif"
-          : ".webp";
-
-  const filename =
-    crypto.randomBytes(24).toString("hex") +
-    extension;
-
-  const imagesDir =
-    path.join(
-      __dirname,
-      "uploads"
-    );
-
-  if (!fs.existsSync(imagesDir)) {
-    fs.mkdirSync(imagesDir, {
-      recursive: true
-    });
-  }
-
-  fs.writeFileSync(
-    path.join(
-      imagesDir,
-      filename
-    ),
-    parsed.buffer
-  );
-
-  return `/uploads/${filename}`;
-}
-
 async function initDatabase() {
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       username TEXT PRIMARY KEY,
@@ -196,10 +105,7 @@ async function initDatabase() {
 
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-      PRIMARY KEY (
-        username,
-        friend_username
-      )
+      PRIMARY KEY (username, friend_username)
     )
   `);
 
@@ -216,14 +122,19 @@ async function initDatabase() {
   `);
 
   /*
-   * Bestehende Datenbanken reparieren.
+   * Falls die messages-Tabelle bereits aus
+   * einer älteren Version existiert, wird
+   * image_url nachträglich ergänzt.
    */
-
   await pool.query(`
     ALTER TABLE messages
     ADD COLUMN IF NOT EXISTS image_url TEXT
   `);
 
+  /*
+   * Text darf bei einer reinen Bildnachricht
+   * leer sein.
+   */
   await pool.query(`
     ALTER TABLE messages
     ALTER COLUMN text DROP NOT NULL
@@ -246,8 +157,43 @@ async function initDatabase() {
   console.log("🗄️ Datenbank bereit");
 }
 
-async function cleanOldGroupMessages() {
+async function ensureAdminContacts(username) {
+  const normalized = normalizeUsername(username);
 
+  for (const admin of GROUP_ADMINS) {
+    if (admin === normalized) continue;
+
+    /*
+     * Der neue Benutzer bekommt beide Admins
+     * als Kontakt.
+     */
+    await pool.query(`
+      INSERT INTO friends
+      (username, friend_username)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+    `, [
+      normalized,
+      admin
+    ]);
+
+    /*
+     * Der Admin bekommt den neuen Benutzer
+     * ebenfalls als Kontakt.
+     */
+    await pool.query(`
+      INSERT INTO friends
+      (username, friend_username)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+    `, [
+      admin,
+      normalized
+    ]);
+  }
+}
+
+async function cleanOldGroupMessages() {
   await pool.query(`
     DELETE FROM messages
     WHERE is_group = TRUE
@@ -257,7 +203,6 @@ async function cleanOldGroupMessages() {
 }
 
 async function cleanResetTokens() {
-
   await pool.query(`
     DELETE FROM password_resets
     WHERE expires_at < NOW()
@@ -266,9 +211,7 @@ async function cleanResetTokens() {
 }
 
 async function broadcastGroup(data) {
-
   for (const client of wss.clients) {
-
     if (
       client.readyState === WebSocket.OPEN &&
       client.username
@@ -278,102 +221,8 @@ async function broadcastGroup(data) {
   }
 }
 
-async function addAutomaticContacts(username) {
-
-  /*
-   * Jeder neue Benutzer bekommt
-   * beide Admins automatisch.
-   */
-
-  for (const admin of GROUP_ADMINS) {
-
-    if (admin === username) {
-      continue;
-    }
-
-    const adminExists =
-      await pool.query(
-        `
-        SELECT 1
-        FROM users
-        WHERE username = $1
-        `,
-        [admin]
-      );
-
-    if (!adminExists.rowCount) {
-      continue;
-    }
-
-    await pool.query(
-      `
-      INSERT INTO friends
-      (
-        username,
-        friend_username
-      )
-      VALUES ($1,$2)
-      ON CONFLICT DO NOTHING
-      `,
-      [
-        username,
-        admin
-      ]
-    );
-
-    /*
-     * Und die Admins bekommen
-     * den neuen Benutzer automatisch.
-     */
-
-    await pool.query(
-      `
-      INSERT INTO friends
-      (
-        username,
-        friend_username
-      )
-      VALUES ($1,$2)
-      ON CONFLICT DO NOTHING
-      `,
-      [
-        admin,
-        username
-      ]
-    );
-  }
-}
-
-async function addExistingUsersToAdmins(username) {
-
-  for (const admin of GROUP_ADMINS) {
-
-    if (admin === username) {
-      continue;
-    }
-
-    await pool.query(
-      `
-      INSERT INTO friends
-      (
-        username,
-        friend_username
-      )
-      VALUES ($1,$2)
-      ON CONFLICT DO NOTHING
-      `,
-      [
-        admin,
-        username
-      ]
-    );
-  }
-}
-
 function getFile(reqUrl) {
-
-  let requested =
-    reqUrl.split("?")[0];
+  let requested = String(reqUrl || "/").split("?")[0];
 
   if (
     requested === "/" ||
@@ -382,20 +231,11 @@ function getFile(reqUrl) {
     requested = "/index.html";
   }
 
-  /*
-   * Bilder aus uploads erlauben.
-   */
+  const file = path.normalize(
+    path.join(__dirname, requested)
+  );
 
-  const file =
-    path.normalize(
-      path.join(
-        __dirname,
-        requested
-      )
-    );
-
-  const root =
-    path.normalize(__dirname);
+  const root = path.normalize(__dirname);
 
   if (
     file !== root &&
@@ -407,1417 +247,1140 @@ function getFile(reqUrl) {
   return file;
 }
 
-const server =
-  http.createServer(
-    (req, res) => {
+const server = http.createServer((req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200, {
+      "Content-Type": "application/json"
+    });
 
-      if (req.url === "/health") {
+    res.end(JSON.stringify({
+      status: "ok"
+    }));
 
-        res.writeHead(200, {
-          "Content-Type":
-            "application/json"
-        });
+    return;
+  }
 
-        res.end(
-          JSON.stringify({
-            status: "ok"
-          })
-        );
+  const file = getFile(req.url);
 
-        return;
-      }
+  if (!file) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
 
-      const file =
-        getFile(
-          req.url || "/"
-        );
+  const ext = path.extname(file).toLowerCase();
 
-      if (!file) {
+  const types = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon"
+  };
 
-        res.writeHead(403);
-        res.end("Forbidden");
-
-        return;
-      }
-
-      const ext =
-        path.extname(file)
-          .toLowerCase();
-
-      const types = {
-
-        ".html":
-          "text/html; charset=utf-8",
-
-        ".js":
-          "application/javascript; charset=utf-8",
-
-        ".json":
-          "application/json; charset=utf-8",
-
-        ".css":
-          "text/css; charset=utf-8",
-
-        ".png":
-          "image/png",
-
-        ".jpg":
-          "image/jpeg",
-
-        ".jpeg":
-          "image/jpeg",
-
-        ".gif":
-          "image/gif",
-
-        ".webp":
-          "image/webp",
-
-        ".svg":
-          "image/svg+xml",
-
-        ".ico":
-          "image/x-icon"
-      };
-
-      fs.readFile(
-        file,
-        (error, data) => {
-
-          if (error) {
-
-            res.writeHead(404);
-
-            res.end(
-              "Datei nicht gefunden"
-            );
-
-            return;
-          }
-
-          res.writeHead(200, {
-            "Content-Type":
-              types[ext] ||
-              "application/octet-stream"
-          });
-
-          res.end(data);
-        }
-      );
+  fs.readFile(file, (error, data) => {
+    if (error) {
+      res.writeHead(404);
+      res.end("Datei nicht gefunden");
+      return;
     }
-  );
 
-const wss =
-  new WebSocket.Server({
-    server
+    res.writeHead(200, {
+      "Content-Type":
+        types[ext] || "application/octet-stream"
+    });
+
+    res.end(data);
   });
-
-wss.on(
-  "connection",
-  socket => {
-
-    console.log(
-      "📱 Gerät verbunden"
-    );
-
-    socket.on(
-      "message",
-      async raw => {
-
-        try {
-
-          const data =
-            JSON.parse(
-              raw.toString()
-            );
-
-          /*
-           * =========================
-           * REGISTRIERUNG
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "register"
-          ) {
-
-            const username =
-              String(
-                data.username || ""
-              )
-                .trim()
-                .toLowerCase();
-
-            const password =
-              String(
-                data.password || ""
-              );
-
-            const accessCode =
-              String(
-                data.accessCode || ""
-              );
-
-            if (!ACCESS_CODE) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "ACCESS_CODE fehlt auf Render."
-              });
-
-              return;
-            }
-
-            if (
-              accessCode !==
-              ACCESS_CODE
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Falscher Zugangscode."
-              });
-
-              return;
-            }
-
-            if (
-              !/^[a-z0-9_]{3,30}$/
-                .test(username)
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Benutzername: 3–30 Zeichen."
-              });
-
-              return;
-            }
-
-            if (
-              password.length < 8
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Passwort muss mindestens 8 Zeichen haben."
-              });
-
-              return;
-            }
-
-            const exists =
-              await pool.query(
-                `
-                SELECT 1
-                FROM users
-                WHERE username = $1
-                `,
-                [username]
-              );
-
-            if (exists.rowCount) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Benutzername bereits vergeben."
-              });
-
-              return;
-            }
-
-            await pool.query(
-              `
-              INSERT INTO users
-              (
-                username,
-                password_hash
-              )
-              VALUES ($1,$2)
-              `,
-              [
-                username,
-                hashPassword(
-                  password
-                )
-              ]
-            );
-
-            /*
-             * Automatische Kontakte.
-             */
-
-            await addAutomaticContacts(
-              username
-            );
-
-            await addExistingUsersToAdmins(
-              username
-            );
-
-            socket.username =
-              username;
-
-            send(socket, {
-
-              type:
-                "registered",
-
-              username,
-
-              isAdmin:
-                isAdmin(username)
-
-            });
-
-            return;
-          }
-
-          /*
-           * =========================
-           * LOGIN
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "login"
-          ) {
-
-            const username =
-              String(
-                data.username || ""
-              )
-                .trim()
-                .toLowerCase();
-
-            const password =
-              String(
-                data.password || ""
-              );
-
-            const result =
-              await pool.query(
-                `
-                SELECT
-                  username,
-                  password_hash
-                FROM users
-                WHERE username = $1
-                `,
-                [username]
-              );
-
-            if (
-              !result.rowCount ||
-              !verifyPassword(
-                password,
-                result.rows[0]
-                  .password_hash
-              )
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Benutzername oder Passwort falsch."
-              });
-
-              return;
-            }
-
-            /*
-             * Auch bestehende Benutzer
-             * bekommen beim Login automatisch
-             * die Admins.
-             */
-
-            await addAutomaticContacts(
-              username
-            );
-
-            await addExistingUsersToAdmins(
-              username
-            );
-
-            socket.username =
-              username;
-
-            send(socket, {
-
-              type:
-                "loggedIn",
-
-              username,
-
-              isAdmin:
-                isAdmin(username)
-
-            });
-
-            return;
-          }
-
-          /*
-           * =========================
-           * PASSWORT VERGESSEN
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "forgotPassword"
-          ) {
-
-            const username =
-              String(
-                data.username || ""
-              )
-                .trim()
-                .toLowerCase();
-
-            if (!username) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Bitte Benutzername eingeben."
-              });
-
-              return;
-            }
-
-            const result =
-              await pool.query(
-                `
-                SELECT username
-                FROM users
-                WHERE username = $1
-                `,
-                [username]
-              );
-
-            send(socket, {
-
-              type:
-                "forgotPasswordSent",
-
-              text:
-                "Wenn das Konto existiert, wurde eine Anfrage an die Admins gesendet."
-
-            });
-
-            if (
-              !result.rowCount
-            ) {
-              return;
-            }
-
-            const request = {
-
-              type:
-                "passwordResetRequest",
-
-              username,
-
-              time:
-                Date.now()
-            };
-
-            for (
-              const client of
-                wss.clients
-            ) {
-
-              if (
-                client.readyState ===
-                  WebSocket.OPEN &&
-                client.username &&
-                isAdmin(
-                  client.username
-                )
-              ) {
-
-                send(
-                  client,
-                  request
-                );
-              }
-            }
-
-            return;
-          }
-
-          /*
-           * =========================
-           * ADMIN RESET LINK
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "createPasswordReset"
-          ) {
-
-            const admin =
-              socket.username;
-
-            if (
-              !isAdmin(admin)
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Nur Admins dürfen Reset-Links erstellen."
-              });
-
-              return;
-            }
-
-            const username =
-              String(
-                data.username || ""
-              )
-                .trim()
-                .toLowerCase();
-
-            const user =
-              await pool.query(
-                `
-                SELECT username
-                FROM users
-                WHERE username = $1
-                `,
-                [username]
-              );
-
-            if (!user.rowCount) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Benutzer nicht gefunden."
-              });
-
-              return;
-            }
-
-            await pool.query(
-              `
-              DELETE FROM password_resets
-              WHERE username = $1
-              `,
-              [username]
-            );
-
-            const token =
-              crypto
-                .randomBytes(32)
-                .toString("hex");
-
-            await pool.query(
-              `
-              INSERT INTO password_resets
-              (
-                token_hash,
-                username,
-                expires_at
-              )
-              VALUES (
-                $1,
-                $2,
-                NOW() +
-                INTERVAL '15 minutes'
-              )
-              `,
-              [
-                hashToken(token),
-                username
-              ]
-            );
-
-            const baseUrl =
-              APP_URL ||
-              `https://${
-                process.env
-                  .RENDER_EXTERNAL_HOSTNAME ||
-                "localhost"
-              }`;
-
-            const resetUrl =
-              `${baseUrl}/?reset=${token}`;
-
-            send(socket, {
-
-              type:
-                "passwordResetLink",
-
-              username,
-
-              resetUrl,
-
-              expiresIn:
-                15 * 60 * 1000
-
-            });
-
-            return;
-          }
-
-          /*
-           * =========================
-           * PASSWORT ÄNDERN
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "resetPassword"
-          ) {
-
-            const token =
-              String(
-                data.token || ""
-              );
-
-            const password =
-              String(
-                data.password || ""
-              );
-
-            if (
-              !token ||
-              password.length < 8
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Das neue Passwort muss mindestens 8 Zeichen haben."
-              });
-
-              return;
-            }
-
-            const result =
-              await pool.query(
-                `
-                SELECT username
-                FROM password_resets
-                WHERE token_hash = $1
-                AND used = FALSE
-                AND expires_at > NOW()
-                `,
-                [hashToken(token)]
-              );
-
-            if (
-              !result.rowCount
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Reset-Link ungültig oder abgelaufen."
-              });
-
-              return;
-            }
-
-            const username =
-              result.rows[0]
-                .username;
-
-            await pool.query(
-              `
-              UPDATE users
-              SET password_hash = $1
-              WHERE username = $2
-              `,
-              [
-                hashPassword(
-                  password
-                ),
-                username
-              ]
-            );
-
-            await pool.query(
-              `
-              UPDATE password_resets
-              SET used = TRUE
-              WHERE token_hash = $1
-              `,
-              [hashToken(token)]
-            );
-
-            send(socket, {
-
-              type:
-                "passwordResetSuccess",
-
-              username
-
-            });
-
-            return;
-          }
-
-          /*
-           * =========================
-           * FREUND HINZUFÜGEN
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "addFriend"
-          ) {
-
-            if (!socket.username) {
-              return;
-            }
-
-            const friend =
-              String(
-                data.username || ""
-              )
-                .trim()
-                .toLowerCase();
-
-            if (
-              !friend ||
-              friend ===
-                socket.username
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Ungültiger Benutzer."
-              });
-
-              return;
-            }
-
-            const user =
-              await pool.query(
-                `
-                SELECT 1
-                FROM users
-                WHERE username = $1
-                `,
-                [friend]
-              );
-
-            if (!user.rowCount) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Benutzer nicht gefunden."
-              });
-
-              return;
-            }
-
-            await pool.query(
-              `
-              INSERT INTO friends
-              (
-                username,
-                friend_username
-              )
-              VALUES ($1,$2)
-              ON CONFLICT DO NOTHING
-              `,
-              [
-                socket.username,
-                friend
-              ]
-            );
-
-            send(socket, {
-
-              type:
-                "friendAdded",
-
-              username:
-                friend
-            });
-
-            return;
-          }
-
-          /*
-           * =========================
-           * FREUNDE LADEN
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "getFriends"
-          ) {
-
-            if (!socket.username) {
-              return;
-            }
-
-            /*
-             * Sicherheit:
-             * Admins bekommen alle Benutzer.
-             * Normale Benutzer bekommen mindestens
-             * beide Admins.
-             */
-
-            await addAutomaticContacts(
-              socket.username
-            );
-
-            await addExistingUsersToAdmins(
-              socket.username
-            );
-
-            if (isAdmin(socket.username)) {
-
-              const result =
-                await pool.query(
-                  `
-                  SELECT username
-                  FROM users
-                  WHERE username <> $1
-                  ORDER BY username
-                  `,
-                  [socket.username]
-                );
-
-              send(socket, {
-
-                type:
-                  "friends",
-
-                friends:
-                  result.rows.map(
-                    row =>
-                      row.username
-                  )
-              });
-
-            } else {
-
-              const result =
-                await pool.query(
-                  `
-                  SELECT
-                    friend_username AS username
-                  FROM friends
-                  WHERE username = $1
-                  ORDER BY friend_username
-                  `,
-                  [socket.username]
-                );
-
-              send(socket, {
-
-                type:
-                  "friends",
-
-                friends:
-                  result.rows.map(
-                    row =>
-                      row.username
-                  )
-              });
-            }
-
-            return;
-          }
-
-          /*
-           * =========================
-           * ALLE BENUTZER
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "getUsers"
-          ) {
-
-            if (
-              !socket.username ||
-              !isAdmin(
-                socket.username
-              )
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Nur Admins können Benutzer sehen."
-              });
-
-              return;
-            }
-
-            const result =
-              await pool.query(
-                `
-                SELECT
-                  username,
-                  created_at
-                FROM users
-                ORDER BY created_at ASC
-                `
-              );
-
-            send(socket, {
-
-              type:
-                "users",
-
-              users:
-                result.rows.map(
-                  row => ({
-                    username:
-                      row.username,
-
-                    createdAt:
-                      row.created_at
-                  })
-                )
-            });
-
-            return;
-          }
-
-          /*
-           * =========================
-           * PRIVATE NACHRICHTEN LADEN
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "getPrivateMessages"
-          ) {
-
-            if (!socket.username) {
-              return;
-            }
-
-            const other =
-              String(
-                data.username || ""
-              )
-                .trim()
-                .toLowerCase();
-
-            const result =
-              await pool.query(
-                `
-                SELECT
-                  sender AS "from",
-                  receiver AS "to",
-                  text,
-                  image_url AS "imageUrl",
-                  EXTRACT(
-                    EPOCH FROM created_at
-                  ) * 1000 AS time
-                FROM messages
-                WHERE is_group = FALSE
-                AND (
-                  (
-                    sender = $1
-                    AND receiver = $2
-                  )
-                  OR
-                  (
-                    sender = $2
-                    AND receiver = $1
-                  )
-                )
-                ORDER BY created_at ASC
-                `,
-                [
-                  socket.username,
-                  other
-                ]
-              );
-
-            send(socket, {
-
-              type:
-                "privateMessages",
-
-              username:
-                other,
-
-              messages:
-                result.rows.map(
-                  row => ({
-                    ...row,
-                    time:
-                      Number(
-                        row.time
-                      )
-                  })
-                )
-            });
-
-            return;
-          }
-
-          /*
-           * =========================
-           * ALLGEMEIN LADEN
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "getGroupMessages"
-          ) {
-
-            if (!socket.username) {
-              return;
-            }
-
-            await cleanOldGroupMessages();
-
-            const result =
-              await pool.query(
-                `
-                SELECT
-                  sender AS username,
-                  text,
-                  image_url AS "imageUrl",
-                  EXTRACT(
-                    EPOCH FROM created_at
-                  ) * 1000 AS time
-                FROM messages
-                WHERE is_group = TRUE
-                ORDER BY created_at ASC
-                `
-              );
-
-            send(socket, {
-
-              type:
-                "groupMessages",
-
-              messages:
-                result.rows.map(
-                  row => ({
-                    ...row,
-                    time:
-                      Number(
-                        row.time
-                      )
-                  })
-                )
-            });
-
-            return;
-          }
-
-          /*
-           * =========================
-           * ALLGEMEIN NACHRICHT
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "groupMessage"
-          ) {
-
-            const username =
-              socket.username;
-
-            if (!username) {
-              return;
-            }
-
-            if (
-              !isAdmin(username)
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Du darfst im Gruppenchat nur lesen."
-              });
-
-              return;
-            }
-
-            const text =
-              data.text
-                ? String(data.text).trim()
-                : null;
-
-            const imageUrl =
-              data.imageUrl
-                ? String(data.imageUrl)
-                : null;
-
-            if (!text && !imageUrl) {
-              return;
-            }
-
-            const result =
-              await pool.query(
-                `
-                INSERT INTO messages
-                (
-                  sender,
-                  text,
-                  image_url,
-                  is_group
-                )
-                VALUES (
-                  $1,$2,$3,TRUE
-                )
-                RETURNING
-                  sender,
-                  text,
-                  image_url AS "imageUrl",
-                  EXTRACT(
-                    EPOCH FROM created_at
-                  ) * 1000 AS time
-                `,
-                [
-                  username,
-                  text,
-                  imageUrl
-                ]
-              );
-
-            const message = {
-
-              username:
-                result.rows[0]
-                  .sender,
-
-              text:
-                result.rows[0]
-                  .text,
-
-              imageUrl:
-                result.rows[0]
-                  .imageUrl,
-
-              time:
-                Number(
-                  result.rows[0]
-                    .time
-                ),
-
-              isAdmin:
-                isAdmin(username)
-            };
-
-            await broadcastGroup({
-
-              type:
-                "groupMessage",
-
-              message
-            });
-
-            return;
-          }
-
-          /*
-           * =========================
-           * PRIVATE NACHRICHT
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "message"
-          ) {
-
-            const from =
-              socket.username;
-
-            const to =
-              String(
-                data.to || ""
-              )
-                .trim()
-                .toLowerCase();
-
-            const text =
-              data.text
-                ? String(data.text).trim()
-                : null;
-
-            const imageUrl =
-              data.imageUrl
-                ? String(data.imageUrl)
-                : null;
-
-            if (
-              !from ||
-              !to ||
-              (!text && !imageUrl)
-            ) {
-              return;
-            }
-
-            const target =
-              await pool.query(
-                `
-                SELECT 1
-                FROM users
-                WHERE username = $1
-                `,
-                [to]
-              );
-
-            if (!target.rowCount) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Benutzer nicht gefunden."
-              });
-
-              return;
-            }
-
-            const result =
-              await pool.query(
-                `
-                INSERT INTO messages
-                (
-                  sender,
-                  receiver,
-                  text,
-                  image_url,
-                  is_group
-                )
-                VALUES (
-                  $1,$2,$3,$4,FALSE
-                )
-                RETURNING
-                  EXTRACT(
-                    EPOCH FROM created_at
-                  ) * 1000 AS time
-                `,
-                [
-                  from,
-                  to,
-                  text,
-                  imageUrl
-                ]
-              );
-
-            const message = {
-
-              type:
-                "message",
-
-              from,
-
-              to,
-
-              text,
-
-              imageUrl,
-
-              time:
-                Number(
-                  result.rows[0]
-                    .time
-                ),
-
-              senderIsAdmin:
-                isAdmin(from)
-            };
-
-            send(
-              socket,
-              message
-            );
-
-            for (
-              const client of
-                wss.clients
-            ) {
-
-              if (
-                client.readyState ===
-                  WebSocket.OPEN &&
-                client.username === to
-              ) {
-
-                send(
-                  client,
-                  message
-                );
-              }
-            }
-
-            return;
-          }
-
-          /*
-           * =========================
-           * BILD HOCHLADEN
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "uploadImage"
-          ) {
-
-            if (!socket.username) {
-              return;
-            }
-
-            const image =
-              sanitizeImageData(
-                data.image
-              );
-
-            if (!image) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Bild ungültig oder größer als 8 MB."
-              });
-
-              return;
-            }
-
-            /*
-             * Normale Benutzer dürfen
-             * Bilder privat senden.
-             *
-             * Im Allgemein-Chat nur Admins.
-             */
-
-            if (
-              data.target ===
-                "general" &&
-              !isAdmin(
-                socket.username
-              )
-            ) {
-
-              send(socket, {
-                type: "error",
-                text:
-                  "Nur Admins können Bilder im Allgemein-Chat senden."
-              });
-
-              return;
-            }
-
-            const url =
-              saveImage(
-                data.image
-              );
-
-            send(socket, {
-
-              type:
-                "imageUploaded",
-
-              url,
-
-              target:
-                data.target || null,
-
-              success:
-                true
-            });
-
-            return;
-          }
-
-        } catch (error) {
-
-          console.error(
-            "❌ Fehler:",
-            error
-          );
-
+});
+
+const wss = new WebSocket.Server({
+  server
+});
+
+wss.on("connection", socket => {
+  console.log("📱 Gerät verbunden");
+
+  socket.on("message", async raw => {
+    try {
+      const data = JSON.parse(raw.toString());
+
+      /*
+       * =========================
+       * REGISTRIERUNG
+       * =========================
+       */
+
+      if (data.type === "register") {
+        const username = normalizeUsername(
+          data.username
+        );
+
+        const password = String(
+          data.password || ""
+        );
+
+        const accessCode = String(
+          data.accessCode || ""
+        );
+
+        if (!ACCESS_CODE) {
           send(socket, {
-
-            type:
-              "error",
-
+            type: "error",
             text:
-              "Serverfehler: " +
-              error.message
+              "ACCESS_CODE fehlt auf dem Server."
           });
+          return;
         }
-      }
-    );
 
-    socket.on(
-      "close",
-      () => {
+        if (accessCode !== ACCESS_CODE) {
+          send(socket, {
+            type: "error",
+            text:
+              "Falscher Zugangscode."
+          });
+          return;
+        }
 
         if (
-          socket.username
+          !/^[a-z0-9_]{3,30}$/.test(username)
         ) {
-
-          console.log(
-            `📱 ${socket.username} getrennt`
-          );
+          send(socket, {
+            type: "error",
+            text:
+              "Benutzername: 3–30 Zeichen, nur a-z, 0-9 und _."
+          });
+          return;
         }
+
+        if (password.length < 8) {
+          send(socket, {
+            type: "error",
+            text:
+              "Passwort muss mindestens 8 Zeichen haben."
+          });
+          return;
+        }
+
+        const exists = await pool.query(`
+          SELECT 1
+          FROM users
+          WHERE username = $1
+        `, [username]);
+
+        if (exists.rowCount) {
+          send(socket, {
+            type: "error",
+            text:
+              "Benutzername bereits vergeben."
+          });
+          return;
+        }
+
+        await pool.query(`
+          INSERT INTO users
+          (username, password_hash)
+          VALUES ($1, $2)
+        `, [
+          username,
+          hashPassword(password)
+        ]);
+
+        /*
+         * Automatische Kontakte:
+         * neuer Benutzer <-> beide Admins
+         */
+        await ensureAdminContacts(username);
+
+        socket.username = username;
+
+        send(socket, {
+          type: "registered",
+          username,
+          isAdmin: isAdmin(username)
+        });
+
+        /*
+         * Bereits eingeloggte Admins bekommen
+         * den neuen Benutzer direkt als Kontakt.
+         */
+        for (const client of wss.clients) {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            client.username &&
+            isAdmin(client.username)
+          ) {
+            send(client, {
+              type: "newUser",
+              username
+            });
+          }
+        }
+
+        return;
       }
+
+      /*
+       * =========================
+       * LOGIN
+       * =========================
+       */
+
+      if (data.type === "login") {
+        const username = normalizeUsername(
+          data.username
+        );
+
+        const password = String(
+          data.password || ""
+        );
+
+        const result = await pool.query(`
+          SELECT username, password_hash
+          FROM users
+          WHERE username = $1
+        `, [username]);
+
+        if (
+          !result.rowCount ||
+          !verifyPassword(
+            password,
+            result.rows[0].password_hash
+          )
+        ) {
+          send(socket, {
+            type: "error",
+            text:
+              "Benutzername oder Passwort falsch."
+          });
+          return;
+        }
+
+        /*
+         * Für ältere Konten werden die Admin-Kontakte
+         * beim nächsten Login ebenfalls angelegt.
+         */
+        await ensureAdminContacts(username);
+
+        socket.username = username;
+
+        send(socket, {
+          type: "loggedIn",
+          username,
+          isAdmin: isAdmin(username)
+        });
+
+        return;
+      }
+
+      /*
+       * =========================
+       * PASSWORT VERGESSEN
+       * =========================
+       */
+
+      if (data.type === "forgotPassword") {
+        const username = normalizeUsername(
+          data.username
+        );
+
+        if (!username) {
+          send(socket, {
+            type: "error",
+            text:
+              "Bitte Benutzername eingeben."
+          });
+          return;
+        }
+
+        const result = await pool.query(`
+          SELECT username
+          FROM users
+          WHERE username = $1
+        `, [username]);
+
+        send(socket, {
+          type: "forgotPasswordSent",
+          text:
+            "Wenn das Konto existiert, wurde eine Anfrage an die Admins gesendet."
+        });
+
+        if (!result.rowCount) return;
+
+        const request = {
+          type: "passwordResetRequest",
+          username,
+          time: Date.now()
+        };
+
+        for (const client of wss.clients) {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            client.username &&
+            isAdmin(client.username)
+          ) {
+            send(client, request);
+          }
+        }
+
+        return;
+      }
+
+      /*
+       * =========================
+       * ADMIN RESET LINK
+       * =========================
+       */
+
+      if (data.type === "createPasswordReset") {
+        const admin = socket.username;
+
+        if (!isAdmin(admin)) {
+          send(socket, {
+            type: "error",
+            text:
+              "Nur Admins dürfen Reset-Links erstellen."
+          });
+          return;
+        }
+
+        const username = normalizeUsername(
+          data.username
+        );
+
+        const user = await pool.query(`
+          SELECT username
+          FROM users
+          WHERE username = $1
+        `, [username]);
+
+        if (!user.rowCount) {
+          send(socket, {
+            type: "error",
+            text:
+              "Benutzer nicht gefunden."
+          });
+          return;
+        }
+
+        await pool.query(`
+          DELETE FROM password_resets
+          WHERE username = $1
+        `, [username]);
+
+        const token = crypto
+          .randomBytes(32)
+          .toString("hex");
+
+        await pool.query(`
+          INSERT INTO password_resets
+          (
+            token_hash,
+            username,
+            expires_at
+          )
+          VALUES (
+            $1,
+            $2,
+            NOW() + INTERVAL '15 minutes'
+          )
+        `, [
+          hashToken(token),
+          username
+        ]);
+
+        const baseUrl =
+          APP_URL ||
+          (
+            process.env.RENDER_EXTERNAL_HOSTNAME
+              ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
+              : `http://localhost:${PORT}`
+          );
+
+        const resetUrl =
+          `${baseUrl}/?reset=${token}`;
+
+        send(socket, {
+          type: "passwordResetLink",
+          username,
+          resetUrl,
+          expiresIn: 15 * 60 * 1000
+        });
+
+        return;
+      }
+
+      /*
+       * =========================
+       * PASSWORT ÄNDERN
+       * =========================
+       */
+
+      if (data.type === "resetPassword") {
+        const token = String(
+          data.token || ""
+        );
+
+        const password = String(
+          data.password || ""
+        );
+
+        if (
+          !token ||
+          password.length < 8
+        ) {
+          send(socket, {
+            type: "error",
+            text:
+              "Das neue Passwort muss mindestens 8 Zeichen haben."
+          });
+          return;
+        }
+
+        const result = await pool.query(`
+          SELECT username
+          FROM password_resets
+          WHERE token_hash = $1
+          AND used = FALSE
+          AND expires_at > NOW()
+        `, [hashToken(token)]);
+
+        if (!result.rowCount) {
+          send(socket, {
+            type: "error",
+            text:
+              "Reset-Link ungültig oder abgelaufen."
+          });
+          return;
+        }
+
+        const username =
+          result.rows[0].username;
+
+        await pool.query(`
+          UPDATE users
+          SET password_hash = $1
+          WHERE username = $2
+        `, [
+          hashPassword(password),
+          username
+        ]);
+
+        await pool.query(`
+          UPDATE password_resets
+          SET used = TRUE
+          WHERE token_hash = $1
+        `, [hashToken(token)]);
+
+        send(socket, {
+          type: "passwordResetSuccess",
+          username
+        });
+
+        return;
+      }
+
+      /*
+       * =========================
+       * BENUTZERLISTE
+       * =========================
+       */
+
+      if (data.type === "getUsers") {
+        if (!socket.username) return;
+
+        if (!isAdmin(socket.username)) {
+          send(socket, {
+            type: "error",
+            text:
+              "Nur Admins dürfen die Benutzerliste sehen."
+          });
+          return;
+        }
+
+        const result = await pool.query(`
+          SELECT
+            username,
+            created_at
+          FROM users
+          ORDER BY username ASC
+        `);
+
+        send(socket, {
+          type: "users",
+          users: result.rows.map(row => ({
+            username: row.username,
+            createdAt: row.created_at
+          }))
+        });
+
+        return;
+      }
+
+      /*
+       * =========================
+       * FREUND HINZUFÜGEN
+       * =========================
+       */
+
+      if (data.type === "addFriend") {
+        if (!socket.username) return;
+
+        const friend = normalizeUsername(
+          data.username
+        );
+
+        if (
+          !friend ||
+          friend === socket.username
+        ) {
+          send(socket, {
+            type: "error",
+            text:
+              "Ungültiger Benutzer."
+          });
+          return;
+        }
+
+        const user = await pool.query(`
+          SELECT 1
+          FROM users
+          WHERE username = $1
+        `, [friend]);
+
+        if (!user.rowCount) {
+          send(socket, {
+            type: "error",
+            text:
+              "Benutzer nicht gefunden."
+          });
+          return;
+        }
+
+        await pool.query(`
+          INSERT INTO friends
+          (
+            username,
+            friend_username
+          )
+          VALUES ($1, $2)
+          ON CONFLICT DO NOTHING
+        `, [
+          socket.username,
+          friend
+        ]);
+
+        send(socket, {
+          type: "friendAdded",
+          username: friend
+        });
+
+        return;
+      }
+
+      /*
+       * =========================
+       * FREUNDE LADEN
+       * =========================
+       */
+
+      if (data.type === "getFriends") {
+        if (!socket.username) return;
+
+        await ensureAdminContacts(
+          socket.username
+        );
+
+        const result = await pool.query(`
+          SELECT
+            friend_username AS username
+          FROM friends
+          WHERE username = $1
+          ORDER BY friend_username
+        `, [socket.username]);
+
+        send(socket, {
+          type: "friends",
+          friends: result.rows.map(
+            row => row.username
+          )
+        });
+
+        return;
+      }
+
+      /*
+       * =========================
+       * PRIVATE NACHRICHTEN LADEN
+       * =========================
+       */
+
+      if (data.type === "getPrivateMessages") {
+        if (!socket.username) return;
+
+        const other = normalizeUsername(
+          data.username
+        );
+
+        const result = await pool.query(`
+          SELECT
+            sender AS "from",
+            receiver AS "to",
+            text,
+            image_url AS "imageUrl",
+            EXTRACT(
+              EPOCH FROM created_at
+            ) * 1000 AS time
+          FROM messages
+          WHERE is_group = FALSE
+          AND (
+            (
+              sender = $1
+              AND receiver = $2
+            )
+            OR
+            (
+              sender = $2
+              AND receiver = $1
+            )
+          )
+          ORDER BY created_at ASC
+        `, [
+          socket.username,
+          other
+        ]);
+
+        send(socket, {
+          type: "privateMessages",
+          username: other,
+          messages: result.rows.map(row => ({
+            from: row.from,
+            to: row.to,
+            text: row.text || "",
+            imageUrl: row.imageUrl || null,
+            time: Number(row.time)
+          }))
+        });
+
+        return;
+      }
+
+      /*
+       * =========================
+       * ALLGEMEIN LADEN
+       * =========================
+       */
+
+      if (data.type === "getGroupMessages") {
+        if (!socket.username) return;
+
+        await cleanOldGroupMessages();
+
+        const result = await pool.query(`
+          SELECT
+            sender AS username,
+            text,
+            image_url AS "imageUrl",
+            EXTRACT(
+              EPOCH FROM created_at
+            ) * 1000 AS time
+          FROM messages
+          WHERE is_group = TRUE
+          ORDER BY created_at ASC
+        `);
+
+        send(socket, {
+          type: "groupMessages",
+          messages: result.rows.map(row => ({
+            username: row.username,
+            text: row.text || "",
+            imageUrl: row.imageUrl || null,
+            time: Number(row.time)
+          }))
+        });
+
+        return;
+      }
+
+      /*
+       * =========================
+       * ALLGEMEIN NACHRICHT
+       * =========================
+       */
+
+      if (data.type === "groupMessage") {
+        const username = socket.username;
+
+        if (!username) return;
+
+        if (!isAdmin(username)) {
+          send(socket, {
+            type: "error",
+            text:
+              "Du darfst im Allgemein-Chat nur lesen."
+          });
+          return;
+        }
+
+        const text = String(
+          data.text || ""
+        ).trim();
+
+        const imageUrl =
+          data.imageUrl
+            ? String(data.imageUrl)
+            : null;
+
+        if (!text && !imageUrl) return;
+
+        const result = await pool.query(`
+          INSERT INTO messages
+          (
+            sender,
+            text,
+            image_url,
+            is_group
+          )
+          VALUES ($1, $2, $3, TRUE)
+          RETURNING
+            sender,
+            text,
+            image_url AS "imageUrl",
+            EXTRACT(
+              EPOCH FROM created_at
+            ) * 1000 AS time
+        `, [
+          username,
+          text || null,
+          imageUrl
+        ]);
+
+        const row = result.rows[0];
+
+        await broadcastGroup({
+          type: "groupMessage",
+          message: {
+            username: row.sender,
+            text: row.text || "",
+            imageUrl: row.imageUrl || null,
+            time: Number(row.time),
+            isAdmin: true
+          }
+        });
+
+        return;
+      }
+
+      /*
+       * =========================
+       * PRIVATE NACHRICHT
+       * =========================
+       */
+
+      if (data.type === "message") {
+        const from = socket.username;
+
+        const to = normalizeUsername(
+          data.to
+        );
+
+        const text = String(
+          data.text || ""
+        ).trim();
+
+        const imageUrl =
+          data.imageUrl
+            ? String(data.imageUrl)
+            : null;
+
+        if (
+          !from ||
+          !to ||
+          (!text && !imageUrl)
+        ) {
+          return;
+        }
+
+        const target = await pool.query(`
+          SELECT 1
+          FROM users
+          WHERE username = $1
+        `, [to]);
+
+        if (!target.rowCount) {
+          send(socket, {
+            type: "error",
+            text:
+              "Benutzer nicht gefunden."
+          });
+          return;
+        }
+
+        const result = await pool.query(`
+          INSERT INTO messages
+          (
+            sender,
+            receiver,
+            text,
+            image_url,
+            is_group
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            FALSE
+          )
+          RETURNING
+            EXTRACT(
+              EPOCH FROM created_at
+            ) * 1000 AS time
+        `, [
+          from,
+          to,
+          text || null,
+          imageUrl
+        ]);
+
+        const message = {
+          type: "message",
+          from,
+          to,
+          text,
+          imageUrl,
+          time: Number(
+            result.rows[0].time
+          ),
+          senderIsAdmin:
+            isAdmin(from)
+        };
+
+        /*
+         * Absender bekommt die Nachricht
+         * ebenfalls zurück.
+         */
+        send(socket, message);
+
+        /*
+         * Empfänger bekommt sie live.
+         */
+        for (const client of wss.clients) {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            client.username === to
+          ) {
+            send(client, message);
+          }
+        }
+
+        return;
+      }
+
+      /*
+       * =========================
+       * BILD UPLOAD
+       * =========================
+       *
+       * Die Datei wird als Data-URL vom Browser
+       * gesendet und hier als lokale Datei
+       * gespeichert.
+       */
+
+      if (data.type === "uploadImage") {
+        if (!socket.username) return;
+
+        const image = String(
+          data.image || ""
+        );
+
+        const target =
+          normalizeUsername(data.to);
+
+        const general =
+          data.target === "general";
+
+        if (!image.startsWith("data:image/")) {
+          send(socket, {
+            type: "error",
+            text:
+              "Ungültiges Bild."
+          });
+          return;
+        }
+
+        if (
+          general &&
+          !isAdmin(socket.username)
+        ) {
+          send(socket, {
+            type: "error",
+            text:
+              "Nur Admins können Bilder im Allgemein-Chat senden."
+          });
+          return;
+        }
+
+        if (
+          !general &&
+          !target
+        ) {
+          send(socket, {
+            type: "error",
+            text:
+              "Kein Empfänger ausgewählt."
+          });
+          return;
+        }
+
+        if (
+          image.length >
+          12 * 1024 * 1024
+        ) {
+          send(socket, {
+            type: "error",
+            text:
+              "Das Bild ist zu groß."
+          });
+          return;
+        }
+
+        const match =
+          image.match(
+            /^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/
+          );
+
+        if (!match) {
+          send(socket, {
+            type: "error",
+            text:
+              "Bildformat wird nicht unterstützt."
+          });
+          return;
+        }
+
+        let extension =
+          match[1].toLowerCase();
+
+        if (extension === "jpeg") {
+          extension = "jpg";
+        }
+
+        const allowed = [
+          "png",
+          "jpg",
+          "gif",
+          "webp"
+        ];
+
+        if (!allowed.includes(extension)) {
+          send(socket, {
+            type: "error",
+            text:
+              "Erlaubt sind PNG, JPG, GIF und WEBP."
+          });
+          return;
+        }
+
+        const uploadDir =
+          path.join(
+            __dirname,
+            "uploads"
+          );
+
+        await fs.promises.mkdir(
+          uploadDir,
+          { recursive: true }
+        );
+
+        const filename =
+          `${Date.now()}-${crypto.randomBytes(8).toString("hex")}.${extension}`;
+
+        const fullPath =
+          path.join(
+            uploadDir,
+            filename
+          );
+
+        await fs.promises.writeFile(
+          fullPath,
+          Buffer.from(
+            match[2],
+            "base64"
+          )
+        );
+
+        const baseUrl =
+          APP_URL ||
+          (
+            process.env.RENDER_EXTERNAL_HOSTNAME
+              ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
+              : `http://localhost:${PORT}`
+          );
+
+        const imageUrl =
+          `${baseUrl}/uploads/${filename}`;
+
+        /*
+         * Direkt als Nachricht speichern.
+         */
+        if (general) {
+          const result = await pool.query(`
+            INSERT INTO messages
+            (
+              sender,
+              text,
+              image_url,
+              is_group
+            )
+            VALUES ($1, NULL, $2, TRUE)
+            RETURNING
+              sender,
+              image_url AS "imageUrl",
+              EXTRACT(
+                EPOCH FROM created_at
+              ) * 1000 AS time
+          `, [
+            socket.username,
+            imageUrl
+          ]);
+
+          const row = result.rows[0];
+
+          await broadcastGroup({
+            type: "groupMessage",
+            message: {
+              username: row.sender,
+              text: "",
+              imageUrl: row.imageUrl,
+              time: Number(row.time),
+              isAdmin: true
+            }
+          });
+
+          return;
+        }
+
+        const targetUser =
+          await pool.query(`
+            SELECT 1
+            FROM users
+            WHERE username = $1
+          `, [target]);
+
+        if (!targetUser.rowCount) {
+          send(socket, {
+            type: "error",
+            text:
+              "Benutzer nicht gefunden."
+          });
+          return;
+        }
+
+        const result = await pool.query(`
+          INSERT INTO messages
+          (
+            sender,
+            receiver,
+            text,
+            image_url,
+            is_group
+          )
+          VALUES (
+            $1,
+            $2,
+            NULL,
+            $3,
+            FALSE
+          )
+          RETURNING
+            EXTRACT(
+              EPOCH FROM created_at
+            ) * 1000 AS time
+        `, [
+          socket.username,
+          target,
+          imageUrl
+        ]);
+
+        const message = {
+          type: "message",
+          from: socket.username,
+          to: target,
+          text: "",
+          imageUrl,
+          time: Number(
+            result.rows[0].time
+          ),
+          senderIsAdmin:
+            isAdmin(socket.username)
+        };
+
+        send(socket, message);
+
+        for (const client of wss.clients) {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            client.username === target
+          ) {
+            send(client, message);
+          }
+        }
+
+        return;
+      }
+
+    } catch (error) {
+      console.error("❌ Fehler:", error);
+
+      send(socket, {
+        type: "error",
+        text:
+          "Serverfehler: " +
+          error.message
+      });
+    }
+  });
+
+  socket.on("close", () => {
+    if (socket.username) {
+      console.log(
+        `📱 ${socket.username} getrennt`
+      );
+    }
+  });
+});
+
+setInterval(() => {
+  cleanOldGroupMessages()
+    .catch(error =>
+      console.error(
+        "Gruppenchat-Bereinigung:",
+        error.message
+      )
     );
-  }
-);
 
-setInterval(
-  () => {
-
-    cleanOldGroupMessages()
-      .catch(error =>
-        console.error(
-          "Gruppenchat-Bereinigung:",
-          error.message
-        )
-      );
-
-    cleanResetTokens()
-      .catch(error =>
-        console.error(
-          "Reset-Bereinigung:",
-          error.message
-        )
-      );
-
-  },
-  10 * 60 * 1000
-);
+  cleanResetTokens()
+    .catch(error =>
+      console.error(
+        "Reset-Bereinigung:",
+        error.message
+      )
+    );
+}, 10 * 60 * 1000);
 
 initDatabase()
   .then(() => {
-
     server.listen(
       PORT,
       "0.0.0.0",
       () => {
-
         console.log(
           `🚀 FORTX Server läuft auf Port ${PORT}`
         );
@@ -1830,7 +1393,6 @@ initDatabase()
     );
   })
   .catch(error => {
-
     console.error(
       "❌ Datenbankfehler:",
       error
@@ -1838,3 +1400,4 @@ initDatabase()
 
     process.exit(1);
   });
+```
