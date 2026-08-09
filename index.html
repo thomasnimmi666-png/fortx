@@ -3,20 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#111111">
+  <link rel="manifest" href="/manifest.json">
 
   <title>Privater Messenger</title>
 
   <style>
+    :root {
+      --bg: #f2f3f5;
+      --card: #ffffff;
+      --text: #111111;
+      --muted: #707070;
+      --border: #dddddd;
+      --accent: #2563eb;
+      --bubble: #e7eaf0;
+      --input: #f7f7f7;
+      --danger: #dc2626;
+      --success: #16a34a;
+    }
+
+    body.dark {
+      --bg: #0e0e0e;
+      --card: #191919;
+      --text: #f5f5f5;
+      --muted: #a0a0a0;
+      --border: #333333;
+      --accent: #4d86ff;
+      --bubble: #292929;
+      --input: #222222;
+    }
+
     * {
       box-sizing: border-box;
     }
 
+    html,
     body {
       margin: 0;
-      background: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
     }
 
     button,
@@ -24,7 +56,15 @@
       font: inherit;
     }
 
-    .screen {
+    button {
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .center {
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -32,2204 +72,1557 @@
       padding: 20px;
     }
 
-    .box {
+    .card {
       width: 100%;
-      max-width: 400px;
-      background: #111;
-      border: 1px solid #292929;
+      max-width: 430px;
+      background: var(--card);
+      border: 1px solid var(--border);
       border-radius: 20px;
       padding: 25px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
     }
 
-    h1,
-    h2 {
-      text-align: center;
+    h1 {
+      margin-top: 0;
     }
 
     input {
       width: 100%;
-      padding: 14px;
-      margin: 7px 0;
-      border: 1px solid #333;
-      border-radius: 12px;
-      background: #181818;
-      color: #fff;
+      padding: 13px;
+      margin: 6px 0;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--input);
+      color: var(--text);
       outline: none;
     }
 
-    button {
-      width: 100%;
-      padding: 14px;
-      margin-top: 10px;
-      border: 0;
-      border-radius: 12px;
-      background: #fff;
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
+    input:focus {
+      border-color: var(--accent);
     }
 
-    .secondary {
-      background: #222;
-      color: #fff;
-      border: 1px solid #333;
+    button {
+      padding: 12px 16px;
+      margin-top: 8px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--accent);
+      color: white;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    button.danger {
+      background: var(--danger);
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
     }
 
     .error {
-      color: #ff5555;
-      text-align: center;
-      margin-top: 10px;
+      color: #ef4444;
+      margin-top: 12px;
     }
 
     .success {
-      color: #55ff88;
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    #accessScreen,
-    #loginScreen,
-    #registerScreen,
-    #forgotScreen,
-    #resetScreen {
-      display: none;
+      color: var(--success);
+      margin-top: 12px;
     }
 
     #app {
-      display: none;
-      min-height: 100vh;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
     header {
-      height: 60px;
+      height: 62px;
+      flex-shrink: 0;
       display: flex;
       align-items: center;
-      justify-content: center;
-      border-bottom: 1px solid #222;
-      font-weight: bold;
-      position: sticky;
-      top: 0;
-      background: #000;
-      z-index: 10;
+      justify-content: space-between;
+      padding: 0 12px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
     }
 
-    #status {
-      text-align: center;
-      color: #888;
-      font-size: 13px;
-      padding: 8px;
-    }
-
-    .page {
-      width: 100%;
-      max-width: 650px;
-      margin: auto;
-      padding: 15px;
-    }
-
-    .profile {
-      text-align: center;
-      padding: 20px 0;
-    }
-
-    #profileImage {
-      width: 90px;
-      height: 90px;
-      border-radius: 50%;
-      object-fit: cover;
-      background: #222;
-      display: block;
-      margin: auto auto 12px;
-    }
-
-    #myUsername {
-      font-weight: bold;
+    header strong {
       font-size: 18px;
     }
 
-    .installBox {
-      background: #111;
-      border: 1px solid #292929;
-      border-radius: 16px;
-      padding: 15px;
-      margin-bottom: 15px;
-    }
-
-    .installBox strong {
-      display: block;
-      margin-bottom: 6px;
-    }
-
-    #installButton {
-      display: none;
-    }
-
-    .groupChatCard,
-    .friend {
+    .header-buttons {
       display: flex;
-      align-items: center;
-      gap: 12px;
-      background: #111;
-      border: 1px solid #292929;
-      border-radius: 16px;
-      padding: 14px;
-      margin: 10px 0;
-      cursor: pointer;
+      gap: 5px;
     }
 
-    .avatar,
-    .groupIcon {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: #222;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 22px;
-    }
-
-    .friendName {
-      font-weight: bold;
-    }
-
-    .lastMessage {
-      color: #888;
-      font-size: 13px;
-      margin-top: 4px;
-    }
-
-    .adminName {
-      font-weight: bold;
-      animation: glow 2s infinite;
-    }
-
-    @keyframes glow {
-      0%,
-      100% {
-        text-shadow: 0 0 4px #fff;
-      }
-
-      50% {
-        text-shadow: 0 0 14px #fff;
-      }
-    }
-
-    #chatPage {
-      display: none;
-      height: calc(100vh - 60px);
-      flex-direction: column;
-      max-width: 900px;
-      margin: auto;
-    }
-
-    #chatHeader {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px;
-      border-bottom: 1px solid #222;
-    }
-
-    #backButton {
-      width: auto;
+    .header-buttons button {
       margin: 0;
-      padding: 5px 12px;
-      background: transparent;
-      color: #fff;
-      font-size: 25px;
     }
 
-    #messages {
+    .main {
       flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      padding: 12px;
+      background: var(--card);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+    }
+
+    .chat {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-title {
+      padding: 15px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      font-weight: bold;
+    }
+
+    .messages {
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
       padding: 15px;
     }
 
     .message {
-      width: fit-content;
-      max-width: 80%;
-      background: #181818;
-      border: 1px solid #292929;
+      max-width: 75%;
+      width: max-content;
+      margin: 7px 0;
+      padding: 9px 13px;
       border-radius: 15px;
-      padding: 10px 14px;
-      margin: 8px 0;
+      background: var(--bubble);
       word-break: break-word;
     }
 
-    .mine {
+    .message.mine {
       margin-left: auto;
-      background: #252525;
+      background: var(--accent);
+      color: white;
     }
 
-    .messageUser {
-      font-size: 12px;
-      color: #aaa;
-      margin-bottom: 4px;
-      font-weight: bold;
+    .message-name {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-bottom: 3px;
     }
 
-    .messageTime {
-      color: #666;
-      font-size: 10px;
-      margin-top: 5px;
-    }
-
-    #inputArea {
+    .composer {
       display: flex;
       gap: 8px;
       padding: 10px;
-      border-top: 1px solid #222;
+      background: var(--card);
+      border-top: 1px solid var(--border);
     }
 
-    #messageInput {
-      margin: 0;
-      flex: 1;
-    }
-
-    #sendButton {
-      width: auto;
+    .composer input {
       margin: 0;
     }
 
-    #groupReadOnly {
-      display: none;
-      text-align: center;
-      color: #888;
-      padding: 10px;
-      border-top: 1px solid #222;
+    .composer button {
+      margin: 0;
     }
 
-    .empty {
-      text-align: center;
-      color: #777;
-      padding: 25px;
+    .navbutton {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      margin: 4px 0;
+    }
+
+    .navbutton.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .sidebar h3 {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 18px 5px 8px;
+    }
+
+    .friend {
+      padding: 11px;
+      border-radius: 11px;
+      margin: 3px 0;
+      cursor: pointer;
+    }
+
+    .friend:hover {
+      background: var(--bubble);
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .settings-row button {
+      margin: 0;
+    }
+
+    @media (max-width: 700px) {
+      .sidebar {
+        width: 80px;
+        padding: 7px;
+      }
+
+      .sidebar .label {
+        display: none;
+      }
+
+      .sidebar h3 {
+        display: none;
+      }
+
+      .message {
+        max-width: 88%;
+      }
+
+      header strong {
+        font-size: 16px;
+      }
     }
   </style>
 </head>
 
 <body>
 
-<div id="accessScreen" class="screen">
-  <div class="box">
-    <h1>🔐</h1>
-    <h2>Privater Messenger</h2>
+  <!-- LOGIN -->
 
-    <input
-      id="accessCode"
-      type="password"
-      placeholder="Zugangscode"
-    >
+  <div id="loginScreen" class="center">
 
-    <button onclick="checkAccess()">
-      Weiter
-    </button>
+    <div class="card">
 
-    <div id="accessError" class="error"></div>
-  </div>
-</div>
+      <h1>🔐 Privater Messenger</h1>
 
-
-<div id="loginScreen" class="screen">
-  <div class="box">
-
-    <h1>👤</h1>
-    <h2>Anmelden</h2>
-
-    <input
-      id="loginUsername"
-      type="text"
-      placeholder="Benutzername"
-      autocomplete="username"
-    >
-
-    <input
-      id="loginPassword"
-      type="password"
-      placeholder="Passwort"
-      autocomplete="current-password"
-    >
-
-    <button onclick="login()">
-      Anmelden
-    </button>
-
-    <button
-      class="secondary"
-      onclick="showRegister()"
-    >
-      Neues Konto erstellen
-    </button>
-
-    <button
-      class="secondary"
-      onclick="showForgotPassword()"
-    >
-      Passwort vergessen
-    </button>
-
-    <div id="loginError" class="error"></div>
-
-  </div>
-</div>
-
-
-<div id="registerScreen" class="screen">
-  <div class="box">
-
-    <h1>✨</h1>
-    <h2>Konto erstellen</h2>
-
-    <input
-      id="registerUsername"
-      type="text"
-      placeholder="Benutzername"
-    >
-
-    <input
-      id="registerPassword"
-      type="password"
-      placeholder="Passwort, mindestens 8 Zeichen"
-    >
-
-    <button onclick="register()">
-      Konto erstellen
-    </button>
-
-    <button
-      class="secondary"
-      onclick="showLogin()"
-    >
-      Zur Anmeldung
-    </button>
-
-    <div id="registerError" class="error"></div>
-
-  </div>
-</div>
-
-
-<div id="forgotScreen" class="screen">
-  <div class="box">
-
-    <h1>🔑</h1>
-    <h2>Passwort vergessen</h2>
-
-    <input
-      id="forgotUsername"
-      type="text"
-      placeholder="Benutzername"
-    >
-
-    <button onclick="forgotPassword()">
-      Anfrage senden
-    </button>
-
-    <button
-      class="secondary"
-      onclick="showLogin()"
-    >
-      Zur Anmeldung
-    </button>
-
-    <div id="forgotError" class="error"></div>
-    <div id="forgotSuccess" class="success"></div>
-
-  </div>
-</div>
-
-
-<div id="resetScreen" class="screen">
-  <div class="box">
-
-    <h1>🔐</h1>
-    <h2>Neues Passwort</h2>
-
-    <input
-      id="resetPasswordInput"
-      type="password"
-      placeholder="Neues Passwort"
-    >
-
-    <button onclick="resetPassword()">
-      Passwort ändern
-    </button>
-
-    <div id="resetError" class="error"></div>
-    <div id="resetSuccess" class="success"></div>
-
-  </div>
-</div>
-
-
-<div id="app">
-
-  <header>
-    🔐 Privater Messenger
-  </header>
-
-  <div id="status">
-    🔄 Verbindung wird hergestellt...
-  </div>
-
-  <div id="homePage" class="page">
-
-    <div class="profile">
-
-      <img
-        id="profileImage"
-        alt="Profilbild"
-      >
-
-      <div id="myUsername">
-        Benutzer
-      </div>
+      <p class="small">
+        Melde dich an oder erstelle ein neues Konto.
+      </p>
 
       <input
-        id="profileFile"
-        type="file"
-        accept="image/*"
-        style="display:none"
-        onchange="changeProfileImage(event)"
-      >
+        id="loginUsername"
+        placeholder="Benutzername"
+        autocomplete="username">
+
+      <input
+        id="loginPassword"
+        type="password"
+        placeholder="Passwort"
+        autocomplete="current-password">
+
+      <button onclick="login()">
+        Anmelden
+      </button>
 
       <button
         class="secondary"
-        onclick="document.getElementById('profileFile').click()"
-      >
-        🖼️ Profilbild ändern
+        onclick="showRegister()">
+        Neues Konto erstellen
       </button>
-
-    </div>
-
-
-    <div class="installBox">
-
-      <strong>
-        📱 App installieren
-      </strong>
-
-      <div style="color:#888;font-size:14px;">
-        Installiere den Messenger auf deinem Gerät.
-      </div>
 
       <button
-        id="installButton"
-        onclick="installApp()"
-      >
-        📲 App installieren
+        class="secondary"
+        onclick="showForgot()">
+        Passwort vergessen
       </button>
 
-    </div>
-
-
-    <input
-      id="friendUsername"
-      type="text"
-      placeholder="Benutzername hinzufügen"
-    >
-
-    <button onclick="addFriend()">
-      + Freund hinzufügen
-    </button>
-
-
-    <input
-      id="search"
-      type="text"
-      placeholder="🔎 Freunde suchen..."
-      oninput="searchFriends()"
-    >
-
-
-    <div
-      class="groupChatCard"
-      onclick="openGroupChat()"
-    >
-
-      <div class="groupIcon">
-        🌐
-      </div>
-
-      <div>
-        <div class="adminName">
-          Allgemein
-        </div>
-
-        <div class="lastMessage">
-          Gruppenchat
-        </div>
-      </div>
+      <div id="loginError" class="error"></div>
 
     </div>
-
-
-    <div id="friends"></div>
 
   </div>
 
 
-  <div id="chatPage">
+  <!-- REGISTRIERUNG -->
 
-    <div id="chatHeader">
+  <div
+    id="registerScreen"
+    class="center hidden">
 
-      <button
-        id="backButton"
-        onclick="closeChat()"
-      >
-        ←
-      </button>
+    <div class="card">
 
-      <strong id="chatTitle">
-        Chat
-      </strong>
-
-    </div>
-
-
-    <div id="messages"></div>
-
-
-    <div id="groupReadOnly">
-      👀 Du kannst hier nur lesen.
-    </div>
-
-
-    <div id="inputArea">
+      <h1>👤 Konto erstellen</h1>
 
       <input
-        id="messageInput"
-        type="text"
-        placeholder="Nachricht schreiben..."
-      >
+        id="registerUsername"
+        placeholder="Benutzername">
+
+      <input
+        id="registerPassword"
+        type="password"
+        placeholder="Passwort, mindestens 8 Zeichen">
+
+      <input
+        id="registerAccessCode"
+        type="password"
+        placeholder="Server-Zugangscode">
+
+      <button onclick="register()">
+        Registrieren
+      </button>
 
       <button
-        id="sendButton"
-        onclick="sendMessage()"
-      >
-        Senden
+        class="secondary"
+        onclick="showLogin()">
+        Zur Anmeldung
+      </button>
+
+      <div
+        id="registerError"
+        class="error">
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- PASSWORT VERGESSEN -->
+
+  <div
+    id="forgotScreen"
+    class="center hidden">
+
+    <div class="card">
+
+      <h1>🔑 Passwort vergessen</h1>
+
+      <p class="small">
+        Gib deinen Benutzernamen ein.
+        Die Admins bekommen eine Reset-Anfrage.
+      </p>
+
+      <input
+        id="forgotUsername"
+        placeholder="Benutzername">
+
+      <button onclick="forgotPassword()">
+        Anfrage senden
+      </button>
+
+      <button
+        class="secondary"
+        onclick="showLogin()">
+        Zurück
+      </button>
+
+      <div id="forgotMessage"></div>
+
+    </div>
+
+  </div>
+
+
+  <!-- PASSWORT RESET -->
+
+  <div
+    id="resetScreen"
+    class="center hidden">
+
+    <div class="card">
+
+      <h1>🔐 Neues Passwort</h1>
+
+      <p class="small">
+        Dein Reset-Link ist 15 Minuten gültig.
+      </p>
+
+      <input
+        id="resetPassword"
+        type="password"
+        placeholder="Neues Passwort">
+
+      <input
+        id="resetPassword2"
+        type="password"
+        placeholder="Passwort wiederholen">
+
+      <button onclick="resetPassword()">
+        Passwort ändern
+      </button>
+
+      <div id="resetMessage"></div>
+
+    </div>
+
+  </div>
+
+
+  <!-- APP -->
+
+  <div id="app" class="hidden">
+
+    <header>
+
+      <strong>
+        💬 Messenger
+      </strong>
+
+      <div class="header-buttons">
+
+        <button
+          class="secondary"
+          onclick="showSettings()">
+          ⚙️
+        </button>
+
+        <button
+          class="secondary"
+          onclick="logout()">
+          Abmelden
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <div class="main">
+
+      <!-- SIDEBAR -->
+
+      <aside class="sidebar">
+
+        <button
+          id="generalButton"
+          class="navbutton active"
+          onclick="openGeneral()">
+
+          💬
+          <span class="label">
+            Allgemein
+          </span>
+
+        </button>
+
+        <h3>
+          Private Chats
+        </h3>
+
+        <div id="friends"></div>
+
+        <button
+          class="secondary"
+          onclick="addFriend()">
+
+          ➕
+          <span class="label">
+            Benutzer hinzufügen
+          </span>
+
+        </button>
+
+        <button
+          class="secondary"
+          onclick="showSettings()">
+
+          ⚙️
+          <span class="label">
+            Einstellungen
+          </span>
+
+        </button>
+
+      </aside>
+
+
+      <!-- CHAT -->
+
+      <section class="chat">
+
+        <div
+          id="chatTitle"
+          class="chat-title">
+
+          💬 Allgemein
+
+        </div>
+
+        <div
+          id="messages"
+          class="messages">
+        </div>
+
+        <div class="composer">
+
+          <input
+            id="messageInput"
+            placeholder="Nachricht schreiben..."
+            onkeydown="handleEnter(event)">
+
+          <button onclick="sendMessage()">
+            Senden
+          </button>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </div>
+
+
+  <!-- EINSTELLUNGEN -->
+
+  <div
+    id="settingsScreen"
+    class="center hidden">
+
+    <div class="card">
+
+      <h1>⚙️ Einstellungen</h1>
+
+      <div class="settings-row">
+
+        <span>
+          🌙 Dunkelmodus
+        </span>
+
+        <button onclick="toggleTheme()">
+          Wechseln
+        </button>
+
+      </div>
+
+      <div class="settings-row">
+
+        <span>
+          👤 Benutzer
+        </span>
+
+        <strong id="settingsUsername"></strong>
+
+      </div>
+
+      <button
+        class="secondary"
+        onclick="closeSettings()">
+
+        Zurück
+
       </button>
 
     </div>
 
   </div>
 
-</div>
+
+  <script>
+
+    let socket = null;
+    let currentUser = null;
+    let currentChat = "general";
+    let resetToken = null;
+    let reconnectTimer = null;
 
 
-<script>
-
-const SERVER_URL =
-  "wss://fortx.onrender.com";
-
-const GROUP_ADMINS = [
-  "saftpresse040",
-  "thcliquide"
-];
-
-let socket = null;
-let currentFriend = null;
-let currentChatType = "private";
-let resetToken = null;
-let deferredInstallPrompt = null;
-
-
-function isAdmin(username) {
-
-  return GROUP_ADMINS.includes(
-    String(username || "").toLowerCase()
-  );
-
-}
-
-
-function displayName(username) {
-
-  const name =
-    String(username || "");
-
-  const lower =
-    name.toLowerCase();
-
-  if (lower === "saftpresse040") {
-    return "Saftpresse040 👑";
-  }
-
-  if (lower === "thcliquide") {
-    return "Thcliquide 👑";
-  }
-
-  return name;
-
-}
-
-
-function showOnly(id) {
-
-  const ids = [
-    "accessScreen",
-    "loginScreen",
-    "registerScreen",
-    "forgotScreen",
-    "resetScreen"
-  ];
-
-  ids.forEach(screenId => {
-
-    const element =
-      document.getElementById(screenId);
-
-    if (!element) return;
-
-    element.style.display =
-      screenId === id
-        ? "flex"
-        : "none";
-
-  });
-
-}
-
-
-function setStatus(text) {
-
-  document.getElementById(
-    "status"
-  ).textContent = text;
-
-}
-
-
-function connect() {
-
-  try {
-
-    socket =
-      new WebSocket(
-        SERVER_URL
-      );
-
-  } catch (error) {
-
-    setStatus(
-      "🔴 Verbindung fehlgeschlagen"
-    );
-
-    return;
-
-  }
-
-
-  socket.onopen = () => {
-
-    setStatus(
-      "🟢 Server verbunden"
-    );
-
-  };
-
-
-  socket.onclose = () => {
-
-    setStatus(
-      "🔴 Verbindung getrennt"
-    );
-
-    setTimeout(
-      connect,
-      3000
-    );
-
-  };
-
-
-  socket.onerror = () => {
-
-    setStatus(
-      "🔴 Serverfehler"
-    );
-
-  };
-
-
-  socket.onmessage = event => {
-
-    let data;
-
-    try {
-
-      data =
-        JSON.parse(
-          event.data
-        );
-
-    } catch {
-
-      return;
-
+    function $(id) {
+      return document.getElementById(id);
     }
 
 
-    if (data.type === "error") {
-
-      showCurrentError(
-        data.text
-      );
-
-      return;
-
+    function show(id) {
+      $(id).classList.remove("hidden");
     }
 
 
-    if (
-      data.type ===
-        "registered" ||
-      data.type ===
-        "loggedIn"
-    ) {
-
-      localStorage.setItem(
-        "username",
-        data.username
-      );
-
-      showApp();
-
-      return;
-
+    function hide(id) {
+      $(id).classList.add("hidden");
     }
 
 
-    if (
-      data.type ===
-      "friends"
-    ) {
+    /* SCREENS */
 
-      renderFriends(
-        data.friends || []
-      );
+    function showLogin() {
+      hide("registerScreen");
+      hide("forgotScreen");
+      hide("resetScreen");
+      hide("settingsScreen");
+      hide("app");
 
-      return;
-
+      show("loginScreen");
     }
 
 
-    if (
-      data.type ===
-      "friendAdded"
-    ) {
+    function showRegister() {
+      hide("loginScreen");
+      hide("forgotScreen");
+      hide("resetScreen");
 
-      loadFriends();
-
-      alert(
-        "@" +
-        displayName(
-          data.username
-        ) +
-        " wurde hinzugefügt."
-      );
-
-      return;
-
+      show("registerScreen");
     }
 
 
-    if (
-      data.type ===
-      "privateMessages"
-    ) {
+    function showForgot() {
+      hide("loginScreen");
+      hide("registerScreen");
+      hide("resetScreen");
+
+      show("forgotScreen");
+    }
+
+
+    /* WEBSOCKET */
+
+    function connect() {
 
       if (
-        currentChatType ===
-          "private" &&
-        currentFriend ===
-          data.username
+        socket &&
+        (
+          socket.readyState === WebSocket.OPEN ||
+          socket.readyState === WebSocket.CONNECTING
+        )
       ) {
-
-        document.getElementById(
-          "messages"
-        ).innerHTML = "";
-
-        data.messages.forEach(
-          message => {
-
-            addPrivateMessage(
-              message.text,
-              message.from ===
-                localStorage.getItem(
-                  "username"
-                ),
-              message.time
-            );
-
-          }
-        );
-
+        return;
       }
 
-      return;
+      const protocol =
+        location.protocol === "https:"
+          ? "wss:"
+          : "ws:";
 
-    }
+      socket = new WebSocket(
+        protocol + "//" + location.host
+      );
 
 
-    if (
-      data.type ===
-      "message"
-    ) {
+      socket.onopen = () => {
 
-      const me =
-        localStorage.getItem(
-          "username"
+        console.log(
+          "Verbindung hergestellt"
         );
 
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
 
-      if (
-        currentChatType ===
-          "private" &&
-        currentFriend ===
-          data.from
-      ) {
+      };
 
-        addPrivateMessage(
-          data.text,
-          false,
-          data.time
+
+      socket.onclose = () => {
+
+        console.log(
+          "Verbindung getrennt"
         );
 
-      }
+        if (currentUser) {
 
-
-      if (
-        data.to === me &&
-        data.from !== currentFriend
-      ) {
-
-        notify(
-          "Neue Nachricht",
-          "@" +
-          displayName(
-            data.from
-          )
-        );
-
-      }
-
-      return;
-
-    }
-
-
-    if (
-      data.type ===
-      "groupMessages"
-    ) {
-
-      document.getElementById(
-        "messages"
-      ).innerHTML = "";
-
-      data.messages.forEach(
-        message => {
-
-          addGroupMessage(
-            message.username,
-            message.text,
-            message.time
+          reconnectTimer = setTimeout(
+            connect,
+            3000
           );
 
         }
-      );
 
-      return;
+      };
+
+
+      socket.onerror = error => {
+
+        console.error(
+          "WebSocket-Fehler",
+          error
+        );
+
+      };
+
+
+      socket.onmessage = event => {
+
+        try {
+
+          const data =
+            JSON.parse(event.data);
+
+          handleServerMessage(data);
+
+        } catch (error) {
+
+          console.error(error);
+
+        }
+
+      };
 
     }
 
 
-    if (
-      data.type ===
-      "groupMessage"
-    ) {
+    function send(data) {
 
       if (
-        currentChatType ===
-        "group"
+        !socket ||
+        socket.readyState !== WebSocket.OPEN
       ) {
 
-        addGroupMessage(
-          data.message.username,
-          data.message.text,
-          data.message.time
+        connect();
+
+        setTimeout(
+          () => send(data),
+          500
         );
 
-      } else {
-
-        notify(
-          "Allgemein",
-          "Neue Gruppennachricht"
-        );
-
+        return;
       }
 
-      return;
+      socket.send(
+        JSON.stringify(data)
+      );
 
     }
 
 
-    if (
-      data.type ===
-      "forgotPasswordSent"
-    ) {
+    /* SERVER NACHRICHTEN */
 
-      document.getElementById(
-        "forgotSuccess"
-      ).textContent =
-        data.text;
+    function handleServerMessage(data) {
 
-      return;
+      if (data.type === "error") {
 
-    }
+        showError(
+          data.text || "Serverfehler."
+        );
+
+        return;
+      }
 
 
-    if (
-      data.type ===
-      "passwordResetRequest"
-    ) {
+      if (data.type === "registered") {
 
-      if (
-        isAdmin(
-          localStorage.getItem(
-            "username"
-          )
-        )
-      ) {
+        currentUser = data.username;
 
-        const answer =
-          confirm(
+        enterApp();
+
+        return;
+      }
+
+
+      if (data.type === "loggedIn") {
+
+        currentUser = data.username;
+
+        enterApp();
+
+        return;
+      }
+
+
+      if (data.type === "forgotPasswordSent") {
+
+        $("forgotMessage").className =
+          "success";
+
+        $("forgotMessage").textContent =
+          data.text;
+
+        return;
+      }
+
+
+      if (data.type === "passwordResetSuccess") {
+
+        $("resetMessage").className =
+          "success";
+
+        $("resetMessage").textContent =
+          "Passwort erfolgreich geändert.";
+
+        setTimeout(() => {
+
+          history.replaceState(
+            {},
+            "",
+            "/"
+          );
+
+          showLogin();
+
+        }, 1500);
+
+        return;
+      }
+
+
+      if (data.type === "passwordResetRequest") {
+
+        const isAdmin =
+          currentUser === "saftpresse040" ||
+          currentUser === "thcliquide";
+
+        if (isAdmin) {
+
+          const okay = confirm(
             "Passwort-Reset für @" +
             data.username +
             " erstellen?"
           );
 
-        if (answer) {
+          if (okay) {
 
-          createReset(
-            data.username
+            send({
+              type: "createPasswordReset",
+              username: data.username
+            });
+
+          }
+
+        }
+
+        return;
+      }
+
+
+      if (data.type === "passwordResetLink") {
+
+        if (navigator.clipboard) {
+
+          navigator.clipboard.writeText(
+            data.resetUrl
+          ).catch(() => {});
+
+        }
+
+        alert(
+          "Reset-Link für @" +
+          data.username +
+          ":\n\n" +
+          data.resetUrl +
+          "\n\nGültig: 15 Minuten."
+        );
+
+        return;
+      }
+
+
+      if (data.type === "friendAdded") {
+
+        loadFriends();
+
+        return;
+      }
+
+
+      if (data.type === "friends") {
+
+        renderFriends(
+          data.friends || []
+        );
+
+        return;
+      }
+
+
+      if (data.type === "groupMessages") {
+
+        if (currentChat === "general") {
+
+          renderGroupMessages(
+            data.messages || []
           );
 
         }
 
+        return;
       }
 
-      return;
 
-    }
+      if (data.type === "groupMessage") {
 
+        if (currentChat === "general") {
 
-    if (
-      data.type ===
-      "passwordResetLink"
-    ) {
-
-      alert(
-        "Reset-Link für @" +
-        data.username +
-        ":\n\n" +
-        data.resetUrl +
-        "\n\nGültig für 15 Minuten."
-      );
-
-      return;
-
-    }
-
-
-    if (
-      data.type ===
-      "passwordResetSuccess"
-    ) {
-
-      document.getElementById(
-        "resetSuccess"
-      ).textContent =
-        "Passwort erfolgreich geändert.";
-
-      setTimeout(
-        showLogin,
-        1500
-      );
-
-    }
-
-  };
-
-}
-
-
-function send(data) {
-
-  if (
-    !socket ||
-    socket.readyState !==
-    WebSocket.OPEN
-  ) {
-
-    alert(
-      "Keine Serververbindung."
-    );
-
-    return false;
-
-  }
-
-  socket.send(
-    JSON.stringify(data)
-  );
-
-  return true;
-
-}
-
-
-function checkAccess() {
-
-  const code =
-    document.getElementById(
-      "accessCode"
-    ).value.trim();
-
-
-  if (!code) {
-
-    document.getElementById(
-      "accessError"
-    ).textContent =
-      "Bitte Zugangscode eingeben.";
-
-    return;
-
-  }
-
-
-  sessionStorage.setItem(
-    "accessCode",
-    code
-  );
-
-
-  showLogin();
-
-}
-
-
-function showLogin() {
-
-  showOnly(
-    "loginScreen"
-  );
-
-}
-
-
-function showRegister() {
-
-  showOnly(
-    "registerScreen"
-  );
-
-}
-
-
-function showForgotPassword() {
-
-  showOnly(
-    "forgotScreen"
-  );
-
-}
-
-
-function register() {
-
-  const username =
-    document.getElementById(
-      "registerUsername"
-    ).value.trim();
-
-
-  const password =
-    document.getElementById(
-      "registerPassword"
-    ).value;
-
-
-  if (
-    username.length < 3 ||
-    password.length < 8
-  ) {
-
-    document.getElementById(
-      "registerError"
-    ).textContent =
-      "Benutzername mindestens 3 Zeichen und Passwort mindestens 8 Zeichen.";
-
-    return;
-
-  }
-
-
-  send({
-    type:
-      "register",
-    username,
-    password,
-    accessCode:
-      sessionStorage.getItem(
-        "accessCode"
-      )
-  });
-
-}
-
-
-function login() {
-
-  const username =
-    document.getElementById(
-      "loginUsername"
-    ).value.trim();
-
-
-  const password =
-    document.getElementById(
-      "loginPassword"
-    ).value;
-
-
-  if (!username || !password) {
-
-    document.getElementById(
-      "loginError"
-    ).textContent =
-      "Bitte alles ausfüllen.";
-
-    return;
-
-  }
-
-
-  send({
-    type:
-      "login",
-    username,
-    password
-  });
-
-}
-
-
-function forgotPassword() {
-
-  const username =
-    document.getElementById(
-      "forgotUsername"
-    ).value.trim();
-
-
-  if (!username) {
-
-    document.getElementById(
-      "forgotError"
-    ).textContent =
-      "Bitte Benutzername eingeben.";
-
-    return;
-
-  }
-
-
-  send({
-    type:
-      "forgotPassword",
-    username
-  });
-
-}
-
-
-function createReset(username) {
-
-  send({
-    type:
-      "createPasswordReset",
-    username
-  });
-
-}
-
-
-function resetPassword() {
-
-  const password =
-    document.getElementById(
-      "resetPasswordInput"
-    ).value;
-
-
-  if (
-    password.length < 8
-  ) {
-
-    document.getElementById(
-      "resetError"
-    ).textContent =
-      "Mindestens 8 Zeichen.";
-
-    return;
-
-  }
-
-
-  send({
-    type:
-      "resetPassword",
-    token:
-      resetToken,
-    password
-  });
-
-}
-
-
-function showCurrentError(text) {
-
-  const visibleIds = [
-    "loginScreen",
-    "registerScreen",
-    "forgotScreen",
-    "resetScreen"
-  ];
-
-
-  for (
-    const screenId
-    of visibleIds
-  ) {
-
-    const screen =
-      document.getElementById(
-        screenId
-      );
-
-
-    if (
-      screen.style.display ===
-      "flex"
-    ) {
-
-      const error =
-        screen.querySelector(
-          ".error"
-        );
-
-
-      if (error) {
-
-        error.textContent =
-          text;
-
-      }
-
-      return;
-
-    }
-
-  }
-
-
-  alert(text);
-
-}
-
-
-function showApp() {
-
-  showOnly(
-    "__nothing__"
-  );
-
-
-  document.getElementById(
-    "app"
-  ).style.display =
-    "block";
-
-
-  document.getElementById(
-    "homePage"
-  ).style.display =
-    "block";
-
-
-  document.getElementById(
-    "chatPage"
-  ).style.display =
-    "none";
-
-
-  const username =
-    localStorage.getItem(
-      "username"
-    );
-
-
-  const element =
-    document.getElementById(
-      "myUsername"
-    );
-
-
-  element.textContent =
-    displayName(
-      username
-    );
-
-
-  if (
-    isAdmin(username)
-  ) {
-
-    element.classList.add(
-      "adminName"
-    );
-
-  }
-
-
-  loadFriends();
-
-}
-
-
-function loadFriends() {
-
-  send({
-    type:
-      "getFriends"
-  });
-
-}
-
-
-function renderFriends(
-  friends
-) {
-
-  const container =
-    document.getElementById(
-      "friends"
-    );
-
-
-  container.innerHTML = "";
-
-
-  if (
-    friends.length ===
-    0
-  ) {
-
-    container.innerHTML =
-      `<div class="empty">
-        Noch keine Freunde.
-      </div>`;
-
-    return;
-
-  }
-
-
-  friends.forEach(
-    username => {
-
-      const item =
-        document.createElement(
-          "div"
-        );
-
-
-      item.className =
-        "friend";
-
-
-      item.onclick =
-        () =>
-          openChat(
-            username
+          addGroupMessage(
+            data.message
           );
 
-
-      item.innerHTML =
-        `
-        <div class="avatar">
-          👤
-        </div>
-
-        <div>
-          <div class="friendName">
-            ${escapeHtml(
-              displayName(
-                username
-              )
-            )}
-          </div>
-
-          <div class="lastMessage">
-            Privater Chat
-          </div>
-        </div>
-        `;
-
-
-      container.appendChild(
-        item
-      );
-
-    }
-  );
-
-}
-
-
-function addFriend() {
-
-  const username =
-    document.getElementById(
-      "friendUsername"
-    ).value.trim();
-
-
-  if (!username) {
-
-    alert(
-      "Bitte Benutzername eingeben."
-    );
-
-    return;
-
-  }
-
-
-  send({
-    type:
-      "addFriend",
-    username
-  });
-
-
-  document.getElementById(
-    "friendUsername"
-  ).value = "";
-
-}
-
-
-function openChat(username) {
-
-  currentChatType =
-    "private";
-
-
-  currentFriend =
-    username.toLowerCase();
-
-
-  document.getElementById(
-    "homePage"
-  ).style.display =
-    "none";
-
-
-  document.getElementById(
-    "chatPage"
-  ).style.display =
-    "flex";
-
-
-  document.getElementById(
-    "chatTitle"
-  ).textContent =
-    displayName(
-      username
-    );
-
-
-  document.getElementById(
-    "messages"
-  ).innerHTML = "";
-
-
-  document.getElementById(
-    "inputArea"
-  ).style.display =
-    "flex";
-
-
-  document.getElementById(
-    "groupReadOnly"
-  ).style.display =
-    "none";
-
-
-  send({
-    type:
-      "getPrivateMessages",
-    username:
-      currentFriend
-  });
-
-}
-
-
-function openGroupChat() {
-
-  currentChatType =
-    "group";
-
-
-  currentFriend =
-    null;
-
-
-  document.getElementById(
-    "homePage"
-  ).style.display =
-    "none";
-
-
-  document.getElementById(
-    "chatPage"
-  ).style.display =
-    "flex";
-
-
-  document.getElementById(
-    "chatTitle"
-  ).textContent =
-    "🌐 Allgemein";
-
-
-  document.getElementById(
-    "messages"
-  ).innerHTML = "";
-
-
-  if (
-    isAdmin(
-      localStorage.getItem(
-        "username"
-      )
-    )
-  ) {
-
-    document.getElementById(
-      "inputArea"
-    ).style.display =
-      "flex";
-
-
-    document.getElementById(
-      "groupReadOnly"
-    ).style.display =
-      "none";
-
-  } else {
-
-    document.getElementById(
-      "inputArea"
-    ).style.display =
-      "none";
-
-
-    document.getElementById(
-      "groupReadOnly"
-    ).style.display =
-      "block";
-
-  }
-
-
-  send({
-    type:
-      "getGroupMessages"
-  });
-
-}
-
-
-function closeChat() {
-
-  currentFriend =
-    null;
-
-
-  currentChatType =
-    "private";
-
-
-  document.getElementById(
-    "chatPage"
-  ).style.display =
-    "none";
-
-
-  document.getElementById(
-    "homePage"
-  ).style.display =
-    "block";
-
-}
-
-
-function sendMessage() {
-
-  const input =
-    document.getElementById(
-      "messageInput"
-    );
-
-
-  const text =
-    input.value.trim();
-
-
-  if (!text) {
-    return;
-  }
-
-
-  if (
-    currentChatType ===
-    "group"
-  ) {
-
-    if (
-      !isAdmin(
-        localStorage.getItem(
-          "username"
-        )
-      )
-    ) {
-
-      return;
-
-    }
-
-
-    send({
-      type:
-        "groupMessage",
-      text
-    });
-
-
-  } else {
-
-    if (!currentFriend) {
-      return;
-    }
-
-
-    send({
-      type:
-        "message",
-      to:
-        currentFriend,
-      text
-    });
-
-  }
-
-
-  input.value = "";
-
-}
-
-
-function addPrivateMessage(
-  text,
-  mine,
-  time
-) {
-
-  const message =
-    document.createElement(
-      "div"
-    );
-
-
-  message.className =
-    mine
-      ? "message mine"
-      : "message";
-
-
-  message.textContent =
-    text;
-
-
-  if (time) {
-
-    const timeElement =
-      document.createElement(
-        "div"
-      );
-
-
-    timeElement.className =
-      "messageTime";
-
-
-    timeElement.textContent =
-      formatTime(
-        time
-      );
-
-
-    message.appendChild(
-      timeElement
-    );
-
-  }
-
-
-  document.getElementById(
-    "messages"
-  ).appendChild(
-    message
-  );
-
-
-  scrollMessages();
-
-}
-
-
-function addGroupMessage(
-  username,
-  text,
-  time
-) {
-
-  const message =
-    document.createElement(
-      "div"
-    );
-
-
-  message.className =
-    "message";
-
-
-  const user =
-    document.createElement(
-      "div"
-    );
-
-
-  user.className =
-    "messageUser";
-
-
-  if (
-    isAdmin(username)
-  ) {
-
-    user.classList.add(
-      "adminName"
-    );
-
-  }
-
-
-  user.textContent =
-    displayName(
-      username
-    );
-
-
-  const content =
-    document.createElement(
-      "div"
-    );
-
-
-  content.textContent =
-    text;
-
-
-  message.appendChild(
-    user
-  );
-
-
-  message.appendChild(
-    content
-  );
-
-
-  if (time) {
-
-    const timeElement =
-      document.createElement(
-        "div"
-      );
-
-
-    timeElement.className =
-      "messageTime";
-
-
-    timeElement.textContent =
-      formatTime(
-        time
-      );
-
-
-    message.appendChild(
-      timeElement
-    );
-
-  }
-
-
-  document.getElementById(
-    "messages"
-  ).appendChild(
-    message
-  );
-
-
-  scrollMessages();
-
-}
-
-
-function formatTime(time) {
-
-  return new Date(
-    Number(time)
-  ).toLocaleTimeString(
-    "de-DE",
-    {
-      hour:
-        "2-digit",
-      minute:
-        "2-digit"
-    }
-  );
-
-}
-
-
-function scrollMessages() {
-
-  const messages =
-    document.getElementById(
-      "messages"
-    );
-
-
-  messages.scrollTop =
-    messages.scrollHeight;
-
-}
-
-
-function searchFriends() {
-
-  const search =
-    document.getElementById(
-      "search"
-    ).value.toLowerCase();
-
-
-  document
-    .querySelectorAll(
-      ".friend"
-    )
-    .forEach(
-      friend => {
-
-        const name =
-          friend
-            .querySelector(
-              ".friendName"
-            )
-            .textContent
-            .toLowerCase();
-
-
-        friend.style.display =
-          name.includes(
-            search
-          )
-            ? "flex"
-            : "none";
-
-      }
-    );
-
-}
-
-
-function changeProfileImage(
-  event
-) {
-
-  const file =
-    event.target.files[0];
-
-
-  if (!file) {
-    return;
-  }
-
-
-  const reader =
-    new FileReader();
-
-
-  reader.onload =
-    event => {
-
-      document.getElementById(
-        "profileImage"
-      ).src =
-        event.target.result;
-
-
-      localStorage.setItem(
-        "profileImage",
-        event.target.result
-      );
-
-    };
-
-
-  reader.readAsDataURL(
-    file
-  );
-
-}
-
-
-function notify(
-  title,
-  body
-) {
-
-  if (
-    "Notification" in window &&
-    Notification.permission ===
-      "granted"
-  ) {
-
-    try {
-
-      new Notification(
-        title,
-        {
-          body
         }
-      );
 
-    } catch {
-
-      console.log(
-        title,
-        body
-      );
-
-    }
-
-  }
-
-}
+        return;
+      }
 
 
-async function requestNotifications() {
+      if (data.type === "privateMessages") {
 
-  if (
-    !("Notification" in window)
-  ) {
+        if (
+          currentChat === data.username
+        ) {
 
-    return;
+          renderPrivateMessages(
+            data.messages || []
+          );
 
-  }
+        }
+
+        return;
+      }
 
 
-  if (
-    Notification.permission ===
-    "default"
-  ) {
+      if (data.type === "message") {
 
-    try {
+        if (
+          currentChat === data.from
+        ) {
 
-      await Notification.requestPermission();
+          addPrivateMessage(data);
 
-    } catch {
+        }
+
+        return;
+      }
 
     }
 
-  }
 
-}
+    function showError(text) {
 
+      const elements = [
+        $("loginError"),
+        $("registerError"),
+        $("forgotMessage"),
+        $("resetMessage")
+      ];
 
-window.addEventListener(
-  "beforeinstallprompt",
-  event => {
+      elements.forEach(element => {
 
-    event.preventDefault();
+        if (element) {
 
-    deferredInstallPrompt =
-      event;
+          element.className = "error";
+          element.textContent = text;
 
+        }
 
-    document.getElementById(
-      "installButton"
-    ).style.display =
-      "block";
+      });
 
-  }
-);
-
-
-async function installApp() {
-
-  if (!deferredInstallPrompt) {
-
-    alert(
-      "Auf diesem Gerät kannst du über das Browser-Menü 'Zum Startbildschirm hinzufügen' wählen."
-    );
-
-    return;
-
-  }
+    }
 
 
-  deferredInstallPrompt.prompt();
+    /* LOGIN */
 
-  await deferredInstallPrompt
-    .userChoice;
+    function login() {
 
-  deferredInstallPrompt =
-    null;
+      const username =
+        $("loginUsername")
+          .value
+          .trim()
+          .toLowerCase();
 
-}
+      const password =
+        $("loginPassword").value;
+
+      $("loginError").textContent = "";
+
+      if (!username || !password) {
+
+        $("loginError").textContent =
+          "Bitte Benutzername und Passwort eingeben.";
+
+        return;
+      }
+
+      connect();
+
+      setTimeout(() => {
+
+        send({
+          type: "login",
+          username,
+          password
+        });
+
+      }, 300);
+
+    }
 
 
-function escapeHtml(text) {
+    /* REGISTRIERUNG */
 
-  const div =
-    document.createElement(
-      "div"
-    );
+    function register() {
 
+      const username =
+        $("registerUsername")
+          .value
+          .trim()
+          .toLowerCase();
 
-  div.textContent =
-    text;
+      const password =
+        $("registerPassword").value;
 
+      const accessCode =
+        $("registerAccessCode").value;
 
-  return div.innerHTML;
-
-}
-
-
-document
-  .getElementById(
-    "messageInput"
-  )
-  .addEventListener(
-    "keydown",
-    event => {
+      $("registerError").textContent = "";
 
       if (
-        event.key ===
-        "Enter"
+        !username ||
+        !password ||
+        !accessCode
       ) {
 
-        event.preventDefault();
+        $("registerError").textContent =
+          "Bitte alle Felder ausfüllen.";
 
+        return;
+      }
+
+      connect();
+
+      setTimeout(() => {
+
+        send({
+          type: "register",
+          username,
+          password,
+          accessCode
+        });
+
+      }, 300);
+
+    }
+
+
+    /* PASSWORT VERGESSEN */
+
+    function forgotPassword() {
+
+      const username =
+        $("forgotUsername")
+          .value
+          .trim()
+          .toLowerCase();
+
+      $("forgotMessage").textContent = "";
+
+      if (!username) {
+
+        $("forgotMessage").className =
+          "error";
+
+        $("forgotMessage").textContent =
+          "Bitte Benutzername eingeben.";
+
+        return;
+      }
+
+      connect();
+
+      setTimeout(() => {
+
+        send({
+          type: "forgotPassword",
+          username
+        });
+
+      }, 300);
+
+    }
+
+
+    /* RESET */
+
+    function resetPassword() {
+
+      const password =
+        $("resetPassword").value;
+
+      const password2 =
+        $("resetPassword2").value;
+
+      if (password.length < 8) {
+
+        $("resetMessage").className =
+          "error";
+
+        $("resetMessage").textContent =
+          "Das Passwort muss mindestens 8 Zeichen haben.";
+
+        return;
+      }
+
+      if (password !== password2) {
+
+        $("resetMessage").className =
+          "error";
+
+        $("resetMessage").textContent =
+          "Die Passwörter stimmen nicht überein.";
+
+        return;
+      }
+
+      send({
+        type: "resetPassword",
+        token: resetToken,
+        password
+      });
+
+    }
+
+
+    /* APP */
+
+    function enterApp() {
+
+      hide("loginScreen");
+      hide("registerScreen");
+      hide("forgotScreen");
+      hide("resetScreen");
+      hide("settingsScreen");
+
+      show("app");
+
+      $("settingsUsername").textContent =
+        currentUser;
+
+      localStorage.setItem(
+        "messengerUser",
+        currentUser
+      );
+
+      loadFriends();
+      openGeneral();
+
+    }
+
+
+    function logout() {
+
+      currentUser = null;
+
+      localStorage.removeItem(
+        "messengerUser"
+      );
+
+      currentChat = "general";
+
+      if (socket) {
+
+        socket.close();
+        socket = null;
+
+      }
+
+      showLogin();
+
+    }
+
+
+    /* ALLGEMEIN */
+
+    function openGeneral() {
+
+      currentChat = "general";
+
+      $("chatTitle").textContent =
+        "💬 Allgemein";
+
+      $("generalButton")
+        .classList
+        .add("active");
+
+      $("messages").innerHTML = "";
+
+      send({
+        type: "getGroupMessages"
+      });
+
+    }
+
+
+    /* FREUNDE */
+
+    function addFriend() {
+
+      const username =
+        prompt(
+          "Benutzername hinzufügen:"
+        );
+
+      if (!username) return;
+
+      send({
+        type: "addFriend",
+        username:
+          username
+            .trim()
+            .toLowerCase()
+      });
+
+    }
+
+
+    function loadFriends() {
+
+      send({
+        type: "getFriends"
+      });
+
+    }
+
+
+    function renderFriends(friends) {
+
+      $("friends").innerHTML = "";
+
+      friends.forEach(username => {
+
+        const element =
+          document.createElement("div");
+
+        element.className = "friend";
+
+        element.textContent =
+          "👤 " + username;
+
+        element.onclick =
+          () => openPrivate(username);
+
+        $("friends").appendChild(
+          element
+        );
+
+      });
+
+    }
+
+
+    /* PRIVATE CHAT */
+
+    function openPrivate(username) {
+
+      currentChat = username;
+
+      $("chatTitle").textContent =
+        "👤 " + username;
+
+      $("generalButton")
+        .classList
+        .remove("active");
+
+      $("messages").innerHTML = "";
+
+      send({
+        type: "getPrivateMessages",
+        username
+      });
+
+    }
+
+
+    function renderPrivateMessages(messages) {
+
+      $("messages").innerHTML = "";
+
+      messages.forEach(
+        addPrivateMessage
+      );
+
+      scrollBottom();
+
+    }
+
+
+    function addPrivateMessage(message) {
+
+      const element =
+        document.createElement("div");
+
+      element.className = "message";
+
+      if (
+        message.from === currentUser
+      ) {
+
+        element.classList.add("mine");
+
+      }
+
+      element.textContent =
+        message.text;
+
+      $("messages").appendChild(
+        element
+      );
+
+      scrollBottom();
+
+    }
+
+
+    /* ALLGEMEIN */
+
+    function renderGroupMessages(messages) {
+
+      $("messages").innerHTML = "";
+
+      messages.forEach(
+        addGroupMessage
+      );
+
+      scrollBottom();
+
+    }
+
+
+    function addGroupMessage(message) {
+
+      const element =
+        document.createElement("div");
+
+      element.className = "message";
+
+      if (
+        message.username === currentUser
+      ) {
+
+        element.classList.add("mine");
+
+      }
+
+      const name =
+        document.createElement("div");
+
+      name.className =
+        "message-name";
+
+      name.textContent =
+        message.username;
+
+      const text =
+        document.createElement("div");
+
+      text.textContent =
+        message.text;
+
+      element.appendChild(name);
+      element.appendChild(text);
+
+      $("messages").appendChild(
+        element
+      );
+
+      scrollBottom();
+
+    }
+
+
+    /* SENDEN */
+
+    function sendMessage() {
+
+      const input =
+        $("messageInput");
+
+      const text =
+        input.value.trim();
+
+      if (!text) return;
+
+      if (
+        currentChat === "general"
+      ) {
+
+        send({
+          type: "groupMessage",
+          text
+        });
+
+      } else {
+
+        send({
+          type: "message",
+          to: currentChat,
+          text
+        });
+
+      }
+
+      input.value = "";
+      input.focus();
+
+    }
+
+
+    function handleEnter(event) {
+
+      if (event.key === "Enter") {
+
+        event.preventDefault();
         sendMessage();
 
       }
 
     }
-  );
 
 
-const savedImage =
-  localStorage.getItem(
-    "profileImage"
-  );
+    function scrollBottom() {
+
+      const messages =
+        $("messages");
+
+      messages.scrollTop =
+        messages.scrollHeight;
+
+    }
 
 
-if (savedImage) {
+    /* EINSTELLUNGEN */
 
-  document.getElementById(
-    "profileImage"
-  ).src =
-    savedImage;
+    function showSettings() {
 
-}
+      hide("app");
 
+      show("settingsScreen");
 
-const params =
-  new URLSearchParams(
-    window.location.search
-  );
+      $("settingsUsername").textContent =
+        currentUser || "";
+
+    }
 
 
-const token =
-  params.get(
-    "reset"
-  );
+    function closeSettings() {
+
+      hide("settingsScreen");
+
+      show("app");
+
+    }
 
 
-if (token) {
+    function toggleTheme() {
 
-  resetToken =
-    token;
+      document.body
+        .classList
+        .toggle("dark");
 
-  showOnly(
-    "resetScreen"
-  );
+      const isDark =
+        document.body
+          .classList
+          .contains("dark");
 
-} else if (
-  sessionStorage.getItem(
-    "accessCode"
-  )
-) {
+      localStorage.setItem(
+        "theme",
+        isDark ? "dark" : "light"
+      );
 
-  showLogin();
-
-} else {
-
-  showOnly(
-    "accessScreen"
-  );
-
-}
+    }
 
 
-connect();
+    function loadTheme() {
+
+      const theme =
+        localStorage.getItem("theme");
+
+      if (theme === "dark") {
+
+        document.body
+          .classList
+          .add("dark");
+
+      }
+
+    }
 
 
-requestNotifications();
+    /* RESET-LINK PRÜFEN */
 
-</script>
+    function checkResetLink() {
+
+      const params =
+        new URLSearchParams(
+          location.search
+        );
+
+      const token =
+        params.get("reset");
+
+      if (!token) {
+        return false;
+      }
+
+      resetToken = token;
+
+      hide("loginScreen");
+      hide("registerScreen");
+      hide("forgotScreen");
+      hide("app");
+
+      show("resetScreen");
+
+      return true;
+
+    }
+
+
+    /* START */
+
+    window.addEventListener(
+      "load",
+      () => {
+
+        loadTheme();
+
+        connect();
+
+        if (checkResetLink()) {
+          return;
+        }
+
+        const saved =
+          localStorage.getItem(
+            "messengerUser"
+          );
+
+        if (saved) {
+
+          $("loginUsername").value =
+            saved;
+
+        }
+
+      }
+    );
+
+
+    /* SERVICE WORKER */
+
+    if ("serviceWorker" in navigator) {
+
+      navigator.serviceWorker
+        .register("/sw.js")
+        .catch(error => {
+
+          console.error(
+            "Service Worker:",
+            error
+          );
+
+        });
+
+    }
+
+  </script>
 
 </body>
 </html>
