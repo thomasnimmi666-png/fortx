@@ -37,9 +37,6 @@ const pool = new Pool({
 });
 
 async function initDatabase() {
-
-  /* USERS */
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       username TEXT PRIMARY KEY,
@@ -48,32 +45,14 @@ async function initDatabase() {
     )
   `);
 
-  /* FRIENDS */
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS friends (
       username TEXT NOT NULL,
-      friend_username TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      friend_username TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (username, friend_username)
     )
   `);
-
-  /*
-   * Falls die Tabelle bereits existiert,
-   * wird die fehlende Spalte automatisch angelegt.
-   */
-  await pool.query(`
-    ALTER TABLE friends
-    ADD COLUMN IF NOT EXISTS friend_username TEXT
-  `);
-
-  await pool.query(`
-    ALTER TABLE friends
-    ADD COLUMN IF NOT EXISTS created_at
-    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  `);
-
-  /* MESSAGES */
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
@@ -87,9 +66,16 @@ async function initDatabase() {
     )
   `);
 
-  /*
-   * Alte Datenbank-Versionen reparieren.
-   */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      token_hash TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used BOOLEAN DEFAULT FALSE
+    )
+  `);
+
+  /* Fehlende Spalten alter Datenbanken ergänzen */
 
   await pool.query(`
     ALTER TABLE messages
@@ -103,33 +89,23 @@ async function initDatabase() {
 
   await pool.query(`
     ALTER TABLE messages
+    ADD COLUMN IF NOT EXISTS text TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE messages
     ADD COLUMN IF NOT EXISTS is_group BOOLEAN DEFAULT FALSE
   `);
 
-  await pool.query(`
-    ALTER TABLE messages
-    ADD COLUMN IF NOT EXISTS created_at
-    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  `);
-
   /*
-   * Wichtig:
-   * Bildnachrichten haben keinen Text.
+   * Alte friends-Tabelle reparieren.
+   *
+   * Falls friend_username fehlt, wird die Spalte angelegt.
    */
-  await pool.query(`
-    ALTER TABLE messages
-    ALTER COLUMN text DROP NOT NULL
-  `);
-
-  /* PASSWORD RESETS */
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS password_resets (
-      token_hash TEXT PRIMARY KEY,
-      username TEXT NOT NULL,
-      expires_at TIMESTAMP NOT NULL,
-      used BOOLEAN DEFAULT FALSE
-    )
+    ALTER TABLE friends
+    ADD COLUMN IF NOT EXISTS friend_username TEXT
   `);
 
   console.log("🗄️ Datenbank bereit");
@@ -149,26 +125,20 @@ function send(socket, data) {
 }
 
 function hashPassword(password) {
+  const salt = crypto
+    .randomBytes(16)
+    .toString("hex");
 
-  const salt =
-    crypto.randomBytes(16).toString("hex");
-
-  const hash =
-    crypto.scryptSync(
-      password,
-      salt,
-      64
-    ).toString("hex");
+  const hash = crypto
+    .scryptSync(password, salt, 64)
+    .toString("hex");
 
   return `${salt}:${hash}`;
 }
 
 function verifyPassword(password, stored) {
-
   try {
-
-    const parts =
-      String(stored || "").split(":");
+    const parts = String(stored || "").split(":");
 
     if (parts.length !== 2) {
       return false;
@@ -177,18 +147,16 @@ function verifyPassword(password, stored) {
     const salt = parts[0];
     const originalHash = parts[1];
 
-    const hash =
-      crypto.scryptSync(
-        password,
-        salt,
-        64
-      );
+    const hash = crypto.scryptSync(
+      password,
+      salt,
+      64
+    );
 
-    const original =
-      Buffer.from(
-        originalHash,
-        "hex"
-      );
+    const original = Buffer.from(
+      originalHash,
+      "hex"
+    );
 
     return (
       hash.length === original.length &&
@@ -197,15 +165,12 @@ function verifyPassword(password, stored) {
         original
       )
     );
-
   } catch {
-
     return false;
   }
 }
 
 function hashToken(token) {
-
   return crypto
     .createHash("sha256")
     .update(token)
@@ -217,68 +182,47 @@ function hashToken(token) {
 ========================= */
 
 async function ensureAdminContacts(username) {
-
   const normalized =
     normalizeUsername(username);
 
   for (const admin of GROUP_ADMINS) {
-
     if (admin === normalized) {
       continue;
     }
 
-    /*
-     * Neuer Benutzer -> Admin
-     */
-
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO friends
-      (
-        username,
-        friend_username
-      )
-      SELECT $1, $2
-      WHERE NOT EXISTS (
-        SELECT 1
-        FROM friends
-        WHERE username = $1
-        AND friend_username = $2
-      )
-    `, [
-      normalized,
-      admin
-    ]);
+      (username, friend_username)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+      `,
+      [
+        normalized,
+        admin
+      ]
+    );
 
-    /*
-     * Admin -> neuer Benutzer
-     */
-
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO friends
-      (
-        username,
-        friend_username
-      )
-      SELECT $1, $2
-      WHERE NOT EXISTS (
-        SELECT 1
-        FROM friends
-        WHERE username = $1
-        AND friend_username = $2
-      )
-    `, [
-      admin,
-      normalized
-    ]);
+      (username, friend_username)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+      `,
+      [
+        admin,
+        normalized
+      ]
+    );
   }
 }
 
 /* =========================
-   BEREINIGUNG
+   AUFRÄUMEN
 ========================= */
 
 async function cleanOldGroupMessages() {
-
   await pool.query(`
     DELETE FROM messages
     WHERE is_group = TRUE
@@ -288,7 +232,6 @@ async function cleanOldGroupMessages() {
 }
 
 async function cleanResetTokens() {
-
   await pool.query(`
     DELETE FROM password_resets
     WHERE expires_at < NOW()
@@ -297,13 +240,11 @@ async function cleanResetTokens() {
 }
 
 /* =========================
-   WEBSOCKET BROADCAST
+   GRUPPENCHAT BROADCAST
 ========================= */
 
 async function broadcastGroup(data) {
-
   for (const client of wss.clients) {
-
     if (
       client.readyState === WebSocket.OPEN &&
       client.username
@@ -318,10 +259,8 @@ async function broadcastGroup(data) {
 ========================= */
 
 function getFile(reqUrl) {
-
   let requested =
-    String(reqUrl || "/")
-      .split("?")[0];
+    String(reqUrl || "/").split("?")[0];
 
   if (
     requested === "/" ||
@@ -330,26 +269,16 @@ function getFile(reqUrl) {
     requested = "/index.html";
   }
 
-  /*
-   * Uploads erlauben.
-   */
-
-  const file =
-    path.normalize(
-      path.join(
-        __dirname,
-        requested
-      )
-    );
+  const file = path.normalize(
+    path.join(__dirname, requested)
+  );
 
   const root =
     path.normalize(__dirname);
 
   if (
     file !== root &&
-    !file.startsWith(
-      root + path.sep
-    )
+    !file.startsWith(root + path.sep)
   ) {
     return null;
   }
@@ -361,112 +290,84 @@ function getFile(reqUrl) {
    HTTP SERVER
 ========================= */
 
-const server =
-  http.createServer(
-    (req, res) => {
+const server = http.createServer(
+  (req, res) => {
+    if (req.url === "/health") {
+      res.writeHead(200, {
+        "Content-Type":
+          "application/json; charset=utf-8"
+      });
 
-      if (req.url === "/health") {
-
-        res.writeHead(
-          200,
-          {
-            "Content-Type":
-              "application/json"
-          }
-        );
-
-        res.end(
-          JSON.stringify({
-            status: "ok"
-          })
-        );
-
-        return;
-      }
-
-      const file =
-        getFile(req.url);
-
-      if (!file) {
-
-        res.writeHead(403);
-        res.end("Forbidden");
-
-        return;
-      }
-
-      const ext =
-        path.extname(
-          file
-        ).toLowerCase();
-
-      const types = {
-
-        ".html":
-          "text/html; charset=utf-8",
-
-        ".js":
-          "application/javascript; charset=utf-8",
-
-        ".json":
-          "application/json; charset=utf-8",
-
-        ".css":
-          "text/css; charset=utf-8",
-
-        ".png":
-          "image/png",
-
-        ".jpg":
-          "image/jpeg",
-
-        ".jpeg":
-          "image/jpeg",
-
-        ".gif":
-          "image/gif",
-
-        ".webp":
-          "image/webp",
-
-        ".svg":
-          "image/svg+xml",
-
-        ".ico":
-          "image/x-icon"
-      };
-
-      fs.readFile(
-        file,
-        (error, data) => {
-
-          if (error) {
-
-            res.writeHead(404);
-            res.end(
-              "Datei nicht gefunden"
-            );
-
-            return;
-          }
-
-          res.writeHead(
-            200,
-            {
-              "Content-Type":
-                types[ext] ||
-                "application/octet-stream"
-            }
-          );
-
-          res.end(data);
-        }
+      res.end(
+        JSON.stringify({
+          status: "ok"
+        })
       );
+
+      return;
     }
-  );
+
+    const file = getFile(req.url);
+
+    if (!file) {
+      res.writeHead(403);
+      res.end("Forbidden");
+      return;
+    }
+
+    const ext =
+      path.extname(file).toLowerCase();
+
+    const types = {
+      ".html":
+        "text/html; charset=utf-8",
+      ".js":
+        "application/javascript; charset=utf-8",
+      ".json":
+        "application/json; charset=utf-8",
+      ".css":
+        "text/css; charset=utf-8",
+      ".png":
+        "image/png",
+      ".jpg":
+        "image/jpeg",
+      ".jpeg":
+        "image/jpeg",
+      ".gif":
+        "image/gif",
+      ".webp":
+        "image/webp",
+      ".svg":
+        "image/svg+xml",
+      ".ico":
+        "image/x-icon"
+    };
+
+    fs.readFile(
+      file,
+      (error, data) => {
+        if (error) {
+          res.writeHead(404);
+          res.end(
+            "Datei nicht gefunden"
+          );
+          return;
+        }
+
+        res.writeHead(200, {
+          "Content-Type":
+            types[ext] ||
+            "application/octet-stream"
+        });
+
+        res.end(data);
+      }
+    );
+  }
+);
 
 /* =========================
-   WEBSOCKET SERVER
+   WEBSOCKET
 ========================= */
 
 const wss =
@@ -477,7 +378,6 @@ const wss =
 wss.on(
   "connection",
   socket => {
-
     console.log(
       "📱 Gerät verbunden"
     );
@@ -485,9 +385,7 @@ wss.on(
     socket.on(
       "message",
       async raw => {
-
         try {
-
           const data =
             JSON.parse(
               raw.toString()
@@ -501,7 +399,6 @@ wss.on(
             data.type ===
             "register"
           ) {
-
             const username =
               normalizeUsername(
                 data.username
@@ -518,16 +415,11 @@ wss.on(
               );
 
             if (!ACCESS_CODE) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "ACCESS_CODE fehlt auf dem Server."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "ACCESS_CODE fehlt auf dem Server."
+              });
               return;
             }
 
@@ -535,49 +427,35 @@ wss.on(
               accessCode !==
               ACCESS_CODE
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Falscher Zugangscode."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Falscher Zugangscode."
+              });
               return;
             }
 
             if (
-              !/^[a-z0-9_]{3,30}$/
-                .test(username)
+              !/^[a-z0-9_]{3,30}$/.test(
+                username
+              )
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Benutzername: 3–30 Zeichen, nur a-z, 0-9 und _."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzername: 3–30 Zeichen, nur a-z, 0-9 und _."
+              });
               return;
             }
 
             if (
               password.length < 8
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Passwort muss mindestens 8 Zeichen haben."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Passwort muss mindestens 8 Zeichen haben."
+              });
               return;
             }
 
@@ -591,27 +469,21 @@ wss.on(
                 [username]
               );
 
-            if (exists.rowCount) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Benutzername bereits vergeben."
-                }
-              );
-
+            if (
+              exists.rowCount
+            ) {
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzername bereits vergeben."
+              });
               return;
             }
 
             await pool.query(
               `
               INSERT INTO users
-              (
-                username,
-                password_hash
-              )
+              (username, password_hash)
               VALUES ($1, $2)
               `,
               [
@@ -629,29 +501,18 @@ wss.on(
             socket.username =
               username;
 
-            send(
-              socket,
-              {
-                type:
-                  "registered",
-                username,
-                isAdmin:
-                  isAdmin(
-                    username
-                  )
-              }
-            );
-
-            /*
-             * Admins über neuen Benutzer
-             * informieren.
-             */
+            send(socket, {
+              type:
+                "registered",
+              username,
+              isAdmin:
+                isAdmin(username)
+            });
 
             for (
               const client
               of wss.clients
             ) {
-
               if (
                 client.readyState ===
                   WebSocket.OPEN &&
@@ -660,15 +521,11 @@ wss.on(
                   client.username
                 )
               ) {
-
-                send(
-                  client,
-                  {
-                    type:
-                      "newUser",
-                    username
-                  }
-                );
+                send(client, {
+                  type:
+                    "newUser",
+                  username
+                });
               }
             }
 
@@ -683,7 +540,6 @@ wss.on(
             data.type ===
             "login"
           ) {
-
             const username =
               normalizeUsername(
                 data.username
@@ -714,16 +570,11 @@ wss.on(
                   .password_hash
               )
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Benutzername oder Passwort falsch."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzername oder Passwort falsch."
+              });
               return;
             }
 
@@ -734,18 +585,13 @@ wss.on(
             socket.username =
               username;
 
-            send(
-              socket,
-              {
-                type:
-                  "loggedIn",
-                username,
-                isAdmin:
-                  isAdmin(
-                    username
-                  )
-              }
-            );
+            send(socket, {
+              type:
+                "loggedIn",
+              username,
+              isAdmin:
+                isAdmin(username)
+            });
 
             return;
           }
@@ -758,23 +604,17 @@ wss.on(
             data.type ===
             "forgotPassword"
           ) {
-
             const username =
               normalizeUsername(
                 data.username
               );
 
             if (!username) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Bitte Benutzername eingeben."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Bitte Benutzername eingeben."
+              });
               return;
             }
 
@@ -788,17 +628,16 @@ wss.on(
                 [username]
               );
 
-            send(
-              socket,
-              {
-                type:
-                  "forgotPasswordSent",
-                text:
-                  "Wenn das Konto existiert, wurde eine Anfrage an die Admins gesendet."
-              }
-            );
+            send(socket, {
+              type:
+                "forgotPasswordSent",
+              text:
+                "Wenn das Konto existiert, wurde eine Anfrage an die Admins gesendet."
+            });
 
-            if (!result.rowCount) {
+            if (
+              !result.rowCount
+            ) {
               return;
             }
 
@@ -806,15 +645,13 @@ wss.on(
               type:
                 "passwordResetRequest",
               username,
-              time:
-                Date.now()
+              time: Date.now()
             };
 
             for (
               const client
               of wss.clients
             ) {
-
               if (
                 client.readyState ===
                   WebSocket.OPEN &&
@@ -823,7 +660,6 @@ wss.on(
                   client.username
                 )
               ) {
-
                 send(
                   client,
                   request
@@ -835,29 +671,24 @@ wss.on(
           }
 
           /* =====================
-             RESET LINK ERSTELLEN
+             ADMIN RESET LINK
           ===================== */
 
           if (
             data.type ===
             "createPasswordReset"
           ) {
+            const admin =
+              socket.username;
 
             if (
-              !isAdmin(
-                socket.username
-              )
+              !isAdmin(admin)
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Nur Admins dürfen Reset-Links erstellen."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Nur Admins dürfen Reset-Links erstellen."
+              });
               return;
             }
 
@@ -876,17 +707,14 @@ wss.on(
                 [username]
               );
 
-            if (!user.rowCount) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Benutzer nicht gefunden."
-                }
-              );
-
+            if (
+              !user.rowCount
+            ) {
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzer nicht gefunden."
+              });
               return;
             }
 
@@ -914,8 +742,7 @@ wss.on(
               VALUES (
                 $1,
                 $2,
-                NOW() +
-                  INTERVAL '15 minutes'
+                NOW() + INTERVAL '15 minutes'
               )
               `,
               [
@@ -936,30 +763,26 @@ wss.on(
             const resetUrl =
               `${baseUrl}/?reset=${token}`;
 
-            send(
-              socket,
-              {
-                type:
-                  "passwordResetLink",
-                username,
-                resetUrl,
-                expiresIn:
-                  15 * 60 * 1000
-              }
-            );
+            send(socket, {
+              type:
+                "passwordResetLink",
+              username,
+              resetUrl,
+              expiresIn:
+                15 * 60 * 1000
+            });
 
             return;
           }
 
           /* =====================
-             PASSWORT RESETTEN
+             PASSWORT RESET
           ===================== */
 
           if (
             data.type ===
             "resetPassword"
           ) {
-
             const token =
               String(
                 data.token || ""
@@ -974,16 +797,11 @@ wss.on(
               !token ||
               password.length < 8
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Das neue Passwort muss mindestens 8 Zeichen haben."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Das neue Passwort muss mindestens 8 Zeichen haben."
+              });
               return;
             }
 
@@ -999,17 +817,14 @@ wss.on(
                 [hashToken(token)]
               );
 
-            if (!result.rowCount) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Reset-Link ungültig oder abgelaufen."
-                }
-              );
-
+            if (
+              !result.rowCount
+            ) {
+              send(socket, {
+                type: "error",
+                text:
+                  "Reset-Link ungültig oder abgelaufen."
+              });
               return;
             }
 
@@ -1040,14 +855,11 @@ wss.on(
               [hashToken(token)]
             );
 
-            send(
-              socket,
-              {
-                type:
-                  "passwordResetSuccess",
-                username
-              }
-            );
+            send(socket, {
+              type:
+                "passwordResetSuccess",
+              username
+            });
 
             return;
           }
@@ -1060,7 +872,6 @@ wss.on(
             data.type ===
             "getUsers"
           ) {
-
             if (
               !socket.username
             ) {
@@ -1072,16 +883,11 @@ wss.on(
                 socket.username
               )
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Nur Admins dürfen die Benutzerliste sehen."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Nur Admins dürfen die Benutzerliste sehen."
+              });
               return;
             }
 
@@ -1096,21 +902,18 @@ wss.on(
                 `
               );
 
-            send(
-              socket,
-              {
-                type: "users",
-                users:
-                  result.rows.map(
-                    row => ({
-                      username:
-                        row.username,
-                      createdAt:
-                        row.created_at
-                    })
-                  )
-              }
-            );
+            send(socket, {
+              type: "users",
+              users:
+                result.rows.map(
+                  row => ({
+                    username:
+                      row.username,
+                    createdAt:
+                      row.created_at
+                  })
+                )
+            });
 
             return;
           }
@@ -1123,7 +926,6 @@ wss.on(
             data.type ===
             "addFriend"
           ) {
-
             if (
               !socket.username
             ) {
@@ -1140,16 +942,11 @@ wss.on(
               friend ===
                 socket.username
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Ungültiger Benutzer."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Ungültiger Benutzer."
+              });
               return;
             }
 
@@ -1163,17 +960,14 @@ wss.on(
                 [friend]
               );
 
-            if (!user.rowCount) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Benutzer nicht gefunden."
-                }
-              );
-
+            if (
+              !user.rowCount
+            ) {
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzer nicht gefunden."
+              });
               return;
             }
 
@@ -1184,13 +978,8 @@ wss.on(
                 username,
                 friend_username
               )
-              SELECT $1, $2
-              WHERE NOT EXISTS (
-                SELECT 1
-                FROM friends
-                WHERE username = $1
-                AND friend_username = $2
-              )
+              VALUES ($1, $2)
+              ON CONFLICT DO NOTHING
               `,
               [
                 socket.username,
@@ -1198,15 +987,12 @@ wss.on(
               ]
             );
 
-            send(
-              socket,
-              {
-                type:
-                  "friendAdded",
-                username:
-                  friend
-              }
-            );
+            send(socket, {
+              type:
+                "friendAdded",
+              username:
+                friend
+            });
 
             return;
           }
@@ -1219,7 +1005,6 @@ wss.on(
             data.type ===
             "getFriends"
           ) {
-
             if (
               !socket.username
             ) {
@@ -1234,12 +1019,9 @@ wss.on(
               await pool.query(
                 `
                 SELECT
-                  friend_username
-                    AS username
+                  friend_username AS username
                 FROM friends
                 WHERE username = $1
-                AND friend_username
-                    IS NOT NULL
                 ORDER BY friend_username
                 `,
                 [
@@ -1247,17 +1029,15 @@ wss.on(
                 ]
               );
 
-            send(
-              socket,
-              {
-                type: "friends",
-                friends:
-                  result.rows.map(
-                    row =>
-                      row.username
-                  )
-              }
-            );
+            send(socket, {
+              type:
+                "friends",
+              friends:
+                result.rows.map(
+                  row =>
+                    row.username
+                )
+            });
 
             return;
           }
@@ -1270,7 +1050,6 @@ wss.on(
             data.type ===
             "getPrivateMessages"
           ) {
-
             if (
               !socket.username
             ) {
@@ -1289,8 +1068,7 @@ wss.on(
                   sender AS "from",
                   receiver AS "to",
                   text,
-                  image_url
-                    AS "imageUrl",
+                  image_url AS "imageUrl",
                   EXTRACT(
                     EPOCH FROM created_at
                   ) * 1000 AS time
@@ -1315,33 +1093,31 @@ wss.on(
                 ]
               );
 
-            send(
-              socket,
-              {
-                type:
-                  "privateMessages",
-                username:
-                  other,
-                messages:
-                  result.rows.map(
-                    row => ({
-                      from:
-                        row.from,
-                      to:
-                        row.to,
-                      text:
-                        row.text || "",
-                      imageUrl:
-                        row.imageUrl ||
-                        null,
-                      time:
-                        Number(
-                          row.time
-                        )
-                    })
-                  )
-              }
-            );
+            send(socket, {
+              type:
+                "privateMessages",
+              username:
+                other,
+              messages:
+                result.rows.map(
+                  row => ({
+                    from:
+                      row.from,
+                    to:
+                      row.to,
+                    text:
+                      row.text ||
+                      "",
+                    imageUrl:
+                      row.imageUrl ||
+                      null,
+                    time:
+                      Number(
+                        row.time
+                      )
+                  })
+                )
+            });
 
             return;
           }
@@ -1354,7 +1130,6 @@ wss.on(
             data.type ===
             "getGroupMessages"
           ) {
-
             if (
               !socket.username
             ) {
@@ -1369,8 +1144,7 @@ wss.on(
                 SELECT
                   sender AS username,
                   text,
-                  image_url
-                    AS "imageUrl",
+                  image_url AS "imageUrl",
                   EXTRACT(
                     EPOCH FROM created_at
                   ) * 1000 AS time
@@ -1380,42 +1154,39 @@ wss.on(
                 `
               );
 
-            send(
-              socket,
-              {
-                type:
-                  "groupMessages",
-                messages:
-                  result.rows.map(
-                    row => ({
-                      username:
-                        row.username,
-                      text:
-                        row.text || "",
-                      imageUrl:
-                        row.imageUrl ||
-                        null,
-                      time:
-                        Number(
-                          row.time
-                        )
-                    })
-                  )
-              }
-            );
+            send(socket, {
+              type:
+                "groupMessages",
+              messages:
+                result.rows.map(
+                  row => ({
+                    username:
+                      row.username,
+                    text:
+                      row.text ||
+                      "",
+                    imageUrl:
+                      row.imageUrl ||
+                      null,
+                    time:
+                      Number(
+                        row.time
+                      )
+                  })
+                )
+            });
 
             return;
           }
 
           /* =====================
-             GRUPPEN-NACHRICHT
+             GRUPPEN NACHRICHT
           ===================== */
 
           if (
             data.type ===
             "groupMessage"
           ) {
-
             const username =
               socket.username;
 
@@ -1426,16 +1197,11 @@ wss.on(
             if (
               !isAdmin(username)
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Du darfst im Allgemein-Chat nur lesen."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Du darfst im Allgemein-Chat nur lesen."
+              });
               return;
             }
 
@@ -1477,8 +1243,7 @@ wss.on(
                 RETURNING
                   sender,
                   text,
-                  image_url
-                    AS "imageUrl",
+                  image_url AS "imageUrl",
                   EXTRACT(
                     EPOCH FROM created_at
                   ) * 1000 AS time
@@ -1508,8 +1273,7 @@ wss.on(
                   Number(
                     row.time
                   ),
-                isAdmin:
-                  true
+                isAdmin: true
               }
             });
 
@@ -1524,7 +1288,6 @@ wss.on(
             data.type ===
             "message"
           ) {
-
             const from =
               socket.username;
 
@@ -1548,10 +1311,8 @@ wss.on(
             if (
               !from ||
               !to ||
-              (
-                !text &&
-                !imageUrl
-              )
+              (!text &&
+                !imageUrl)
             ) {
               return;
             }
@@ -1566,17 +1327,14 @@ wss.on(
                 [to]
               );
 
-            if (!target.rowCount) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Benutzer nicht gefunden."
-                }
-              );
-
+            if (
+              !target.rowCount
+            ) {
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzer nicht gefunden."
+              });
               return;
             }
 
@@ -1627,31 +1385,21 @@ wss.on(
                 isAdmin(from)
             };
 
-            /*
-             * Absender
-             */
-
             send(
               socket,
               message
             );
 
-            /*
-             * Empfänger
-             */
-
             for (
               const client
               of wss.clients
             ) {
-
               if (
                 client.readyState ===
                   WebSocket.OPEN &&
                 client.username ===
                   to
               ) {
-
                 send(
                   client,
                   message
@@ -1670,7 +1418,6 @@ wss.on(
             data.type ===
             "uploadImage"
           ) {
-
             if (
               !socket.username
             ) {
@@ -1682,15 +1429,6 @@ wss.on(
                 data.image || ""
               );
 
-            /*
-             * Browser sendet bei deiner
-             * bisherigen index.html
-             * pendingImageTarget.
-             *
-             * Deshalb akzeptieren wir
-             * sowohl target als auch to.
-             */
-
             const target =
               normalizeUsername(
                 data.to
@@ -1698,25 +1436,18 @@ wss.on(
 
             const general =
               data.target ===
-                "general" ||
-              data.to ===
-                "general";
+              "general";
 
             if (
               !image.startsWith(
                 "data:image/"
               )
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Ungültiges Bild."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Ungültiges Bild."
+              });
               return;
             }
 
@@ -1726,16 +1457,11 @@ wss.on(
                 socket.username
               )
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Nur Admins können Bilder im Allgemein-Chat senden."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Nur Admins können Bilder im Allgemein-Chat senden."
+              });
               return;
             }
 
@@ -1743,16 +1469,11 @@ wss.on(
               !general &&
               !target
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Kein Empfänger ausgewählt."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Kein Empfänger ausgewählt."
+              });
               return;
             }
 
@@ -1760,16 +1481,11 @@ wss.on(
               image.length >
               12 * 1024 * 1024
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Das Bild ist zu groß."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Das Bild ist zu groß."
+              });
               return;
             }
 
@@ -1779,28 +1495,23 @@ wss.on(
               );
 
             if (!match) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Bildformat wird nicht unterstützt."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Bildformat wird nicht unterstützt."
+              });
               return;
             }
 
             let extension =
-              match[1]
-                .toLowerCase();
+              match[1].toLowerCase();
 
             if (
               extension ===
               "jpeg"
             ) {
-              extension = "jpg";
+              extension =
+                "jpg";
             }
 
             const allowed = [
@@ -1815,16 +1526,11 @@ wss.on(
                 extension
               )
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Erlaubt sind PNG, JPG, GIF und WEBP."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Erlaubt sind PNG, JPG, GIF und WEBP."
+              });
               return;
             }
 
@@ -1837,7 +1543,8 @@ wss.on(
             await fs.promises.mkdir(
               uploadDir,
               {
-                recursive: true
+                recursive:
+                  true
               }
             );
 
@@ -1870,12 +1577,7 @@ wss.on(
             const imageUrl =
               `${baseUrl}/uploads/${filename}`;
 
-            /*
-             * Allgemein
-             */
-
             if (general) {
-
               const result =
                 await pool.query(
                   `
@@ -1894,8 +1596,7 @@ wss.on(
                   )
                   RETURNING
                     sender,
-                    image_url
-                      AS "imageUrl",
+                    image_url AS "imageUrl",
                     EXTRACT(
                       EPOCH FROM created_at
                     ) * 1000 AS time
@@ -1922,17 +1623,12 @@ wss.on(
                     Number(
                       row.time
                     ),
-                  isAdmin:
-                    true
+                  isAdmin: true
                 }
               });
 
               return;
             }
-
-            /*
-             * Privater Empfänger
-             */
 
             const targetUser =
               await pool.query(
@@ -1947,16 +1643,11 @@ wss.on(
             if (
               !targetUser.rowCount
             ) {
-
-              send(
-                socket,
-                {
-                  type: "error",
-                  text:
-                    "Benutzer nicht gefunden."
-                }
-              );
-
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzer nicht gefunden."
+              });
               return;
             }
 
@@ -2019,14 +1710,12 @@ wss.on(
               const client
               of wss.clients
             ) {
-
               if (
                 client.readyState ===
                   WebSocket.OPEN &&
                 client.username ===
                   target
               ) {
-
                 send(
                   client,
                   message
@@ -2038,21 +1727,17 @@ wss.on(
           }
 
         } catch (error) {
-
           console.error(
             "❌ Fehler:",
             error
           );
 
-          send(
-            socket,
-            {
-              type: "error",
-              text:
-                "Serverfehler: " +
-                error.message
-            }
-          );
+          send(socket, {
+            type: "error",
+            text:
+              "Serverfehler: " +
+              error.message
+          });
         }
       }
     );
@@ -2060,11 +1745,9 @@ wss.on(
     socket.on(
       "close",
       () => {
-
         if (
           socket.username
         ) {
-
           console.log(
             `📱 ${socket.username} getrennt`
           );
@@ -2080,25 +1763,21 @@ wss.on(
 
 setInterval(
   () => {
-
     cleanOldGroupMessages()
-      .catch(
-        error =>
-          console.error(
-            "Gruppenchat-Bereinigung:",
-            error.message
-          )
+      .catch(error =>
+        console.error(
+          "Gruppenchat-Bereinigung:",
+          error.message
+        )
       );
 
     cleanResetTokens()
-      .catch(
-        error =>
-          console.error(
-            "Reset-Bereinigung:",
-            error.message
-          )
+      .catch(error =>
+        console.error(
+          "Reset-Bereinigung:",
+          error.message
+        )
       );
-
   },
   10 * 60 * 1000
 );
@@ -2108,37 +1787,30 @@ setInterval(
 ========================= */
 
 initDatabase()
-  .then(
-    () => {
+  .then(() => {
+    server.listen(
+      PORT,
+      "0.0.0.0",
+      () => {
+        console.log(
+          `🚀 FORTX Server läuft auf Port ${PORT}`
+        );
 
-      server.listen(
-        PORT,
-        "0.0.0.0",
-        () => {
+        console.log(
+          "👑 Admins:",
+          GROUP_ADMINS.join(
+            ", "
+          )
+        );
+      }
+    );
+  })
+  .catch(error => {
+    console.error(
+      "❌ Datenbankfehler:",
+      error
+    );
 
-          console.log(
-            `🚀 FORTX Server läuft auf Port ${PORT}`
-          );
-
-          console.log(
-            "👑 Admins:",
-            GROUP_ADMINS.join(
-              ", "
-            )
-          );
-        }
-      );
-    }
-  )
-  .catch(
-    error => {
-
-      console.error(
-        "❌ Datenbankfehler:",
-        error
-      );
-
-      process.exit(1);
-    }
-  );
+    process.exit(1);
+  });
 ```
