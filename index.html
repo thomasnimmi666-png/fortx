@@ -1,1930 +1,1840 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#000000">
-<title>FORTX</title>
-
-<style>
-* {
-  box-sizing: border-box;
-}
-
-:root {
-  --bg: #000;
-  --panel: #090909;
-  --panel2: #111;
-  --border: #252525;
-  --text: #fff;
-  --muted: #8b8b8b;
-  --bubble: #171717;
-  --bubbleMe: #fff;
-  --bubbleMeText: #000;
-}
-
-body.light {
-  --bg: #f4f4f4;
-  --panel: #fff;
-  --panel2: #eee;
-  --border: #d8d8d8;
-  --text: #080808;
-  --muted: #666;
-  --bubble: #e8e8e8;
-  --bubbleMe: #000;
-  --bubbleMeText: #fff;
-}
-
-html,
-body {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-}
-
-button,
-input {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
-}
-
-.hidden {
-  display: none !important;
-}
-
-/* LOGIN */
-
-#auth {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background:
-    radial-gradient(
-      circle at 50% 20%,
-      #181818 0,
-      #000 45%,
-      #000 100%
-    );
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 420px;
-  background: rgba(10,10,10,.94);
-  border: 1px solid #282828;
-  border-radius: 28px;
-  padding: 32px;
-  box-shadow:
-    0 30px 100px rgba(0,0,0,.65);
-}
-
-.logo {
-  text-align: center;
-  font-size: 46px;
-  font-weight: 900;
-  letter-spacing: 8px;
-  margin-bottom: 8px;
-}
-
-.logo-sub {
-  text-align: center;
-  color: #777;
-  margin-bottom: 30px;
-}
-
-.auth-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-
-.auth-tabs button {
-  flex: 1;
-  border: 1px solid #292929;
-  background: #0d0d0d;
-  color: #888;
-  border-radius: 12px;
-  padding: 12px;
-}
-
-.auth-tabs button.active {
-  background: #fff;
-  color: #000;
-}
-
-.field {
-  margin-bottom: 12px;
-}
-
-.field input {
-  width: 100%;
-  padding: 15px 16px;
-  border-radius: 14px;
-  border: 1px solid #292929;
-  background: #080808;
-  color: #fff;
-  outline: none;
-}
-
-.field input:focus {
-  border-color: #fff;
-}
-
-.primary {
-  width: 100%;
-  padding: 15px;
-  border: 0;
-  border-radius: 14px;
-  background: #fff;
-  color: #000;
-  font-weight: 800;
-}
-
-.secondary {
-  width: 100%;
-  padding: 13px;
-  border: 1px solid #333;
-  border-radius: 14px;
-  background: transparent;
-  color: #fff;
-}
-
-.forgot {
-  text-align: center;
-  margin-top: 16px;
-  color: #aaa;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.message {
-  margin-top: 14px;
-  padding: 12px;
-  border-radius: 12px;
-  background: #171717;
-  color: #ddd;
-  font-size: 14px;
-}
-
-/* APP */
-
-#app {
-  width: 100%;
-  height: 100vh;
-  display: grid;
-  grid-template-columns: 290px 1fr;
-  overflow: hidden;
-}
-
-.sidebar {
-  border-right: 1px solid var(--border);
-  background: var(--panel);
-  display: flex;
-  flex-direction: column;
-}
-
-.brand {
-  padding: 24px;
-  font-size: 27px;
-  font-weight: 900;
-  letter-spacing: 5px;
-  border-bottom: 1px solid var(--border);
-}
-
-.me {
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.me-name {
-  font-weight: 800;
-}
-
-.me-role {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 4px;
-}
-
-.section-title {
-  padding: 18px 18px 8px;
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-}
-
-.contacts {
-  overflow-y: auto;
-  flex: 1;
-}
-
-.contact {
-  padding: 13px 18px;
-  margin: 4px 8px;
-  border-radius: 13px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.contact:hover,
-.contact.active {
-  background: var(--panel2);
-}
-
-.avatar {
-  width: 39px;
-  height: 39px;
-  border-radius: 50%;
-  background: #fff;
-  color: #000;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  flex-shrink: 0;
-}
-
-.contact-info {
-  min-width: 0;
-}
-
-.contact-name {
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.contact-role {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.admin-badge {
-  display: inline-block;
-  margin-left: 5px;
-  font-size: 10px;
-  color: #fff;
-}
-
-.bottom-nav {
-  border-top: 1px solid var(--border);
-  padding: 10px;
-  display: grid;
-  gap: 6px;
-}
-
-.nav-btn {
-  width: 100%;
-  padding: 12px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--muted);
-  border-radius: 12px;
-  text-align: left;
-}
-
-.nav-btn:hover {
-  background: var(--panel2);
-  color: var(--text);
-}
-
-/* CHAT */
-
-.chat {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
-}
-
-.chat-header {
-  height: 70px;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  padding: 0 22px;
-  gap: 12px;
-}
-
-.chat-title {
-  font-weight: 850;
-  font-size: 18px;
-}
-
-.chat-status {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.empty {
-  margin: auto;
-  color: var(--muted);
-  text-align: center;
-}
-
-.msg-row {
-  display: flex;
-}
-
-.msg-row.me {
-  justify-content: flex-end;
-}
-
-.msg {
-  max-width: min(72%, 650px);
-  padding: 10px 13px;
-  border-radius: 17px;
-  background: var(--bubble);
-  border: 1px solid var(--border);
-}
-
-.msg-row.me .msg {
-  background: var(--bubbleMe);
-  color: var(--bubbleMeText);
-  border: 0;
-}
-
-.msg-user {
-  font-size: 11px;
-  font-weight: 800;
-  opacity: .65;
-  margin-bottom: 3px;
-}
-
-.msg-time {
-  font-size: 9px;
-  opacity: .45;
-  margin-top: 5px;
-}
-
-.msg-image {
-  display: block;
-  max-width: 360px;
-  max-height: 420px;
-  border-radius: 12px;
-  margin-bottom: 6px;
-}
-
-.composer {
-  padding: 12px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  gap: 8px;
-}
-
-.composer input[type="text"] {
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--text);
-  padding: 14px;
-  border-radius: 14px;
-  outline: none;
-}
-
-.icon-btn {
-  width: 48px;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--text);
-  border-radius: 14px;
-  font-size: 19px;
-}
-
-.send-btn {
-  width: 55px;
-  border: 0;
-  background: #fff;
-  color: #000;
-  border-radius: 14px;
-  font-weight: 900;
-}
-
-/* MODAL */
-
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.72);
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  z-index: 50;
-}
-
-.modal-card {
-  width: 100%;
-  max-width: 430px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  padding: 24px;
-}
-
-.modal-title {
-  font-size: 21px;
-  font-weight: 900;
-  margin-bottom: 18px;
-}
-
-.setting {
-  padding: 15px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.setting label {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.close {
-  margin-top: 18px;
-}
-
-@media (max-width: 760px) {
-  #app {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    display: none;
-  }
-
-  .msg {
-    max-width: 85%;
-  }
-
-  .chat-header {
-    padding: 0 15px;
-  }
-
-  .messages {
-    padding: 15px;
-  }
-}
-</style>
-</head>
-
-<body>
-
-<!-- AUTH -->
-
-<section id="auth">
-
-  <div class="auth-card">
-
-    <div class="logo">FORTX</div>
-    <div class="logo-sub">
-      Private Messenger
-    </div>
-
-    <div class="auth-tabs">
-      <button id="loginTab"
-              class="active"
-              onclick="showAuth('login')">
-        Login
-      </button>
-
-      <button id="registerTab"
-              onclick="showAuth('register')">
-        Registrieren
-      </button>
-    </div>
-
-    <div id="loginForm">
-
-      <div class="field">
-        <input
-          id="loginUsername"
-          placeholder="Benutzername"
-          autocomplete="username">
-      </div>
-
-      <div class="field">
-        <input
-          id="loginPassword"
-          type="password"
-          placeholder="Passwort"
-          autocomplete="current-password">
-      </div>
-
-      <button class="primary"
-              onclick="login()">
-        Einloggen
-      </button>
-
-      <div class="forgot"
-           onclick="showForgot()">
-        Passwort vergessen?
-      </div>
-
-    </div>
-
-    <div id="registerForm"
-         class="hidden">
-
-      <div class="field">
-        <input
-          id="registerUsername"
-          placeholder="Benutzername">
-      </div>
-
-      <div class="field">
-        <input
-          id="registerPassword"
-          type="password"
-          placeholder="Passwort">
-      </div>
-
-      <div class="field">
-        <input
-          id="registerAccess"
-          placeholder="Zugangscode">
-      </div>
-
-      <button class="primary"
-              onclick="register()">
-        Konto erstellen
-      </button>
-
-    </div>
-
-    <div id="authMessage"
-         class="message hidden"></div>
-
-  </div>
-
-</section>
-
-<!-- APP -->
-
-<section id="app"
-         class="hidden">
-
-  <aside class="sidebar">
-
-    <div class="brand">
-      FORTX
-    </div>
-
-    <div class="me">
-      <div id="myName"
-           class="me-name">
-        -
-      </div>
-
-      <div id="myRole"
-           class="me-role">
-        Mitglied
-      </div>
-    </div>
-
-    <div class="section-title">
-      Chats
-    </div>
-
-    <div id="contacts"
-         class="contacts"></div>
-
-    <div class="bottom-nav">
-
-      <button class="nav-btn"
-              onclick="openSettings()">
-        ⚙️ Einstellungen
-      </button>
-
-      <button id="adminUsersBtn"
-              class="nav-btn hidden"
-              onclick="showUsers()">
-        👑 Benutzer
-      </button>
-
-      <button class="nav-btn"
-              onclick="logout()">
-        🚪 Abmelden
-      </button>
-
-    </div>
-
-  </aside>
-
-  <main class="chat">
-
-    <header class="chat-header">
-
-      <div class="avatar"
-           id="chatAvatar">
-        F
-      </div>
-
-      <div>
-        <div id="chatTitle"
-             class="chat-title">
-          Allgemein
-        </div>
-
-        <div id="chatStatus"
-             class="chat-status">
-          Gruppenchat
-        </div>
-      </div>
-
-    </header>
-
-    <div id="messages"
-         class="messages">
-
-      <div class="empty">
-        Noch keine Nachrichten
-      </div>
-
-    </div>
-
-    <div class="composer">
-
-      <input
-        id="imageInput"
-        type="file"
-        accept="image/*"
-        hidden
-        onchange="sendImage()">
-
-      <button
-        class="icon-btn"
-        onclick="document.getElementById('imageInput').click()"
-        title="Bild senden">
-        🖼️
-      </button>
-
-      <input
-        id="messageInput"
-        type="text"
-        placeholder="Nachricht schreiben..."
-        onkeydown="handleEnter(event)">
-
-      <button
-        class="send-btn"
-        onclick="sendMessage()">
-        ➤
-      </button>
-
-    </div>
-
-  </main>
-
-</section>
-
-<!-- SETTINGS -->
-
-<div id="settingsModal"
-     class="modal hidden">
-
-  <div class="modal-card">
-
-    <div class="modal-title">
-      Einstellungen
-    </div>
-
-    <div class="setting">
-
-      <label>
-        <span>Darstellung</span>
-
-        <select id="themeSelect"
-                onchange="changeTheme()"
-                style="
-                  background:var(--panel2);
-                  color:var(--text);
-                  border:1px solid var(--border);
-                  border-radius:10px;
-                  padding:8px;
-                ">
-
-          <option value="dark">
-            Dunkel
-          </option>
-
-          <option value="light">
-            Hell
-          </option>
-
-        </select>
-
-      </label>
-
-    </div>
-
-    <button
-      class="secondary close"
-      onclick="closeSettings()">
-      Schließen
-    </button>
-
-  </div>
-
-</div>
-
-<!-- FORGOT -->
-
-<div id="forgotModal"
-     class="modal hidden">
-
-  <div class="modal-card">
-
-    <div class="modal-title">
-      Passwort vergessen
-    </div>
-
-    <div class="field">
-      <input
-        id="forgotUsername"
-        placeholder="Benutzername">
-    </div>
-
-    <button
-      class="primary"
-      onclick="forgotPassword()">
-      Anfrage senden
-    </button>
-
-    <button
-      class="secondary close"
-      onclick="closeForgot()">
-      Abbrechen
-    </button>
-
-  </div>
-
-</div>
-
-<!-- ADMIN USERS -->
-
-<div id="usersModal"
-     class="modal hidden">
-
-  <div class="modal-card">
-
-    <div class="modal-title">
-      👑 Benutzer
-    </div>
-
-    <div id="usersList"></div>
-
-    <button
-      class="secondary close"
-      onclick="closeUsers()">
-      Schließen
-    </button>
-
-  </div>
-
-</div>
-
-<script>
-let ws = null;
-let me = null;
-let isAdminUser = false;
-let currentChat = "general";
-let friends = [];
-
-const ADMIN_NAMES = [
+const http = require("http");
+const path = require("path");
+const fs = require("fs");
+const WebSocket = require("ws");
+const crypto = require("crypto");
+const { Pool } = require("pg");
+
+const PORT = process.env.PORT || 3000;
+const ACCESS_CODE = process.env.ACCESS_CODE || "";
+const APP_URL = process.env.APP_URL || "";
+
+const GROUP_ADMINS = [
   "saftpresse040",
   "thcliquide"
 ];
 
-function getSocketUrl() {
-  const protocol =
-    location.protocol === "https:"
-      ? "wss:"
-      : "ws:";
-
-  return (
-    protocol +
-    "//" +
-    location.host
+function isAdmin(username) {
+  return GROUP_ADMINS.includes(
+    String(username || "")
+      .trim()
+      .toLowerCase()
   );
 }
 
-function connect() {
-  ws = new WebSocket(
-    getSocketUrl()
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL
+    ? { rejectUnauthorized: false }
+    : false
+});
+
+function send(socket, data) {
+  if (
+    socket &&
+    socket.readyState === WebSocket.OPEN
+  ) {
+    socket.send(JSON.stringify(data));
+  }
+}
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+
+  const hash = crypto.scryptSync(
+    password,
+    salt,
+    64
+  ).toString("hex");
+
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  try {
+    const [salt, originalHash] = stored.split(":");
+
+    const hash = crypto.scryptSync(
+      password,
+      salt,
+      64
+    );
+
+    const original = Buffer.from(
+      originalHash,
+      "hex"
+    );
+
+    return (
+      hash.length === original.length &&
+      crypto.timingSafeEqual(
+        hash,
+        original
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hashToken(token) {
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+}
+
+function sanitizeImageData(data) {
+  if (
+    typeof data !== "string" ||
+    !data.startsWith("data:image/")
+  ) {
+    return null;
+  }
+
+  const match = data.match(
+    /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
   );
 
-  ws.onopen = () => {
-    console.log("FORTX verbunden");
-  };
+  if (!match) {
+    return null;
+  }
 
-  ws.onmessage = event => {
-    const data =
-      JSON.parse(event.data);
+  const mime = match[1].toLowerCase();
 
-    handleServer(data);
-  };
+  const allowed = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp"
+  ];
 
-  ws.onclose = () => {
-    setTimeout(connect, 2000);
+  if (!allowed.includes(mime)) {
+    return null;
+  }
+
+  const buffer = Buffer.from(
+    match[2],
+    "base64"
+  );
+
+  if (buffer.length > 8 * 1024 * 1024) {
+    return null;
+  }
+
+  return {
+    mime,
+    buffer
   };
 }
 
-function send(data) {
-  if (
-    ws &&
-    ws.readyState === WebSocket.OPEN
-  ) {
-    ws.send(
-      JSON.stringify(data)
+function saveImage(imageData) {
+  const parsed =
+    sanitizeImageData(imageData);
+
+  if (!parsed) {
+    throw new Error(
+      "Ungültiges oder zu großes Bild."
     );
   }
-}
 
-function handleServer(data) {
+  const extension =
+    parsed.mime === "image/jpeg"
+      ? ".jpg"
+      : parsed.mime === "image/png"
+        ? ".png"
+        : parsed.mime === "image/gif"
+          ? ".gif"
+          : ".webp";
 
-  if (data.type === "error") {
-    showAuthMessage(data.text);
-    return;
-  }
+  const filename =
+    crypto.randomBytes(24).toString("hex") +
+    extension;
 
-  if (
-    data.type === "registered" ||
-    data.type === "loggedIn"
-  ) {
-    enterApp(
-      data.username,
-      data.isAdmin
+  const imagesDir =
+    path.join(
+      __dirname,
+      "uploads"
     );
-    return;
-  }
 
-  if (
-    data.type ===
-    "forgotPasswordSent"
-  ) {
-    alert(data.text);
-    closeForgot();
-    return;
-  }
-
-  if (
-    data.type ===
-    "passwordResetRequest"
-  ) {
-    if (isAdminUser) {
-      alert(
-        "Passwort-Reset angefragt für: " +
-        data.username
-      );
-    }
-    return;
-  }
-
-  if (
-    data.type ===
-    "passwordResetLink"
-  ) {
-    prompt(
-      "Reset-Link für " +
-      data.username +
-      ":",
-      data.resetUrl
-    );
-    return;
-  }
-
-  if (
-    data.type ===
-    "passwordResetSuccess"
-  ) {
-    alert(
-      "Passwort erfolgreich geändert."
-    );
-    return;
-  }
-
-  if (data.type === "friends") {
-    friends = data.friends || [];
-    renderContacts();
-    return;
-  }
-
-  if (data.type === "friendAdded") {
-    send({
-      type: "getFriends"
+  if (!fs.existsSync(imagesDir)) {
+    fs.mkdirSync(imagesDir, {
+      recursive: true
     });
-    return;
   }
 
-  if (data.type === "groupMessages") {
-    if (currentChat === "general") {
-      renderMessages(
-        data.messages || [],
-        true
-      );
-    }
-    return;
-  }
-
-  if (data.type === "privateMessages") {
-    if (
-      currentChat ===
-      data.username
-    ) {
-      renderMessages(
-        data.messages || [],
-        false
-      );
-    }
-    return;
-  }
-
-  if (data.type === "groupMessage") {
-    if (currentChat === "general") {
-      appendMessage(
-        data.message,
-        true
-      );
-    }
-    return;
-  }
-
-  if (data.type === "message") {
-
-    if (
-      currentChat === data.from ||
-      currentChat === data.to
-    ) {
-      appendMessage(
-        {
-          from: data.from,
-          to: data.to,
-          text: data.text,
-          imageUrl: data.imageUrl,
-          time: data.time
-        },
-        false
-      );
-    }
-
-    return;
-  }
-
-  if (data.type === "imageUploaded") {
-
-    const target =
-      window.pendingImageTarget;
-
-    window.pendingImageTarget = null;
-
-    if (!target) return;
-
-    if (target === "general") {
-
-      send({
-        type: "groupMessage",
-        imageUrl: data.url
-      });
-
-    } else {
-
-      send({
-        type: "message",
-        to: target,
-        imageUrl: data.url
-      });
-
-    }
-
-    return;
-  }
-
-  if (data.type === "users") {
-    renderUsers(
-      data.users || []
-    );
-  }
-}
-
-function enterApp(
-  username,
-  admin
-) {
-  me = username;
-  isAdminUser = !!admin;
-
-  document
-    .getElementById("auth")
-    .classList.add("hidden");
-
-  document
-    .getElementById("app")
-    .classList.remove("hidden");
-
-  document
-    .getElementById("myName")
-    .textContent =
-      username;
-
-  document
-    .getElementById("myRole")
-    .textContent =
-      isAdminUser
-        ? "👑 Admin"
-        : "Mitglied";
-
-  document
-    .getElementById("adminUsersBtn")
-    .classList.toggle(
-      "hidden",
-      !isAdminUser
-    );
-
-  send({
-    type: "getFriends"
-  });
-
-  openGeneral();
-}
-
-function showAuth(type) {
-
-  const login =
-    type === "login";
-
-  document
-    .getElementById("loginForm")
-    .classList.toggle(
-      "hidden",
-      !login
-    );
-
-  document
-    .getElementById("registerForm")
-    .classList.toggle(
-      "hidden",
-      login
-    );
-
-  document
-    .getElementById("loginTab")
-    .classList.toggle(
-      "active",
-      login
-    );
-
-  document
-    .getElementById("registerTab")
-    .classList.toggle(
-      "active",
-      !login
-    );
-}
-
-function login() {
-  send({
-    type: "login",
-    username:
-      document.getElementById(
-        "loginUsername"
-      ).value,
-    password:
-      document.getElementById(
-        "loginPassword"
-      ).value
-  });
-}
-
-function register() {
-  send({
-    type: "register",
-    username:
-      document.getElementById(
-        "registerUsername"
-      ).value,
-    password:
-      document.getElementById(
-        "registerPassword"
-      ).value,
-    accessCode:
-      document.getElementById(
-        "registerAccess"
-      ).value
-  });
-}
-
-function showForgot() {
-  document
-    .getElementById("forgotModal")
-    .classList.remove(
-      "hidden"
-    );
-}
-
-function closeForgot() {
-  document
-    .getElementById("forgotModal")
-    .classList.add(
-      "hidden"
-    );
-}
-
-function forgotPassword() {
-  send({
-    type:
-      "forgotPassword",
-    username:
-      document.getElementById(
-        "forgotUsername"
-      ).value
-  });
-}
-
-function showAuthMessage(text) {
-  const box =
-    document.getElementById(
-      "authMessage"
-    );
-
-  box.textContent = text;
-  box.classList.remove(
-    "hidden"
-  );
-}
-
-function renderContacts() {
-
-  const container =
-    document.getElementById(
-      "contacts"
-    );
-
-  container.innerHTML = "";
-
-  addContact(
-    "general",
-    "Allgemein",
-    "👥",
-    true
+  fs.writeFileSync(
+    path.join(
+      imagesDir,
+      filename
+    ),
+    parsed.buffer
   );
 
-  for (const username of friends) {
-    addContact(
-      username,
-      username,
-      username === "saftpresse040" ||
-      username === "thcliquide"
-        ? "👑"
-        : username
-          .charAt(0)
-          .toUpperCase(),
-      false
-    );
-  }
+  return `/uploads/${filename}`;
 }
 
-function addContact(
-  id,
-  name,
-  avatar,
-  general
-) {
-  const el =
-    document.createElement(
-      "div"
-    );
+async function initDatabase() {
 
-  el.className =
-    "contact";
-
-  if (
-    currentChat === id
-  ) {
-    el.classList.add(
-      "active"
-    );
-  }
-
-  const admin =
-    ADMIN_NAMES.includes(
-      name
-    );
-
-  el.innerHTML = `
-    <div class="avatar">
-      ${avatar}
-    </div>
-
-    <div class="contact-info">
-      <div class="contact-name">
-        ${escapeHtml(name)}
-        ${
-          admin
-            ? '<span class="admin-badge">👑</span>'
-            : ""
-        }
-      </div>
-
-      <div class="contact-role">
-        ${
-          general
-            ? "Gruppenchat"
-            : admin
-              ? "Admin"
-              : "Kontakt"
-        }
-      </div>
-    </div>
-  `;
-
-  el.onclick = () => {
-
-    if (general) {
-      openGeneral();
-    } else {
-      openPrivate(name);
-    }
-
-  };
-
-  document
-    .getElementById(
-      "contacts"
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      username TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-    .appendChild(el);
-}
+  `);
 
-function openGeneral() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS friends (
+      username TEXT NOT NULL
+        REFERENCES users(username)
+        ON DELETE CASCADE,
 
-  currentChat =
-    "general";
+      friend_username TEXT NOT NULL
+        REFERENCES users(username)
+        ON DELETE CASCADE,
 
-  document
-    .getElementById(
-      "chatTitle"
-    )
-    .textContent =
-      "Allgemein";
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-  document
-    .getElementById(
-      "chatStatus"
-    )
-    .textContent =
-      isAdminUser
-        ? "Du kannst schreiben"
-        : "Nur Lesen";
-
-  document
-    .getElementById(
-      "chatAvatar"
-    )
-    .textContent =
-      "👥";
-
-  document
-    .getElementById(
-      "messages"
-    ).innerHTML = "";
-
-  renderContacts();
-
-  send({
-    type:
-      "getGroupMessages"
-  });
-}
-
-function openPrivate(username) {
-
-  currentChat =
-    username;
-
-  document
-    .getElementById(
-      "chatTitle"
-    )
-    .textContent =
-      username;
-
-  document
-    .getElementById(
-      "chatStatus"
-    )
-    .textContent =
-      ADMIN_NAMES.includes(
-        username
+      PRIMARY KEY (
+        username,
+        friend_username
       )
-        ? "👑 Admin"
-        : "Kontakt";
-
-  document
-    .getElementById(
-      "chatAvatar"
     )
-    .textContent =
-      ADMIN_NAMES.includes(
-        username
-      )
-        ? "👑"
-        : username
-          .charAt(0)
-          .toUpperCase();
+  `);
 
-  document
-    .getElementById(
-      "messages"
-    ).innerHTML = "";
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id SERIAL PRIMARY KEY,
+      sender TEXT NOT NULL,
+      receiver TEXT,
+      text TEXT,
+      image_url TEXT,
+      is_group BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-  renderContacts();
+  /*
+   * Bestehende Datenbanken reparieren.
+   */
 
-  send({
-    type:
-      "getPrivateMessages",
-    username
-  });
+  await pool.query(`
+    ALTER TABLE messages
+    ADD COLUMN IF NOT EXISTS image_url TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE messages
+    ALTER COLUMN text DROP NOT NULL
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      token_hash TEXT PRIMARY KEY,
+
+      username TEXT NOT NULL
+        REFERENCES users(username)
+        ON DELETE CASCADE,
+
+      expires_at TIMESTAMP NOT NULL,
+
+      used BOOLEAN DEFAULT FALSE
+    )
+  `);
+
+  console.log("🗄️ Datenbank bereit");
 }
 
-function renderMessages(
-  messages,
-  group
-) {
-  const container =
-    document.getElementById(
-      "messages"
-    );
+async function cleanOldGroupMessages() {
 
-  container.innerHTML = "";
+  await pool.query(`
+    DELETE FROM messages
+    WHERE is_group = TRUE
+    AND created_at <
+      NOW() - INTERVAL '24 hours'
+  `);
+}
 
-  if (!messages.length) {
-    container.innerHTML =
-      '<div class="empty">Noch keine Nachrichten</div>';
-    return;
-  }
+async function cleanResetTokens() {
 
-  messages.forEach(
-    message => {
-      appendMessage(
-        message,
-        group,
-        false
-      );
+  await pool.query(`
+    DELETE FROM password_resets
+    WHERE expires_at < NOW()
+    OR used = TRUE
+  `);
+}
+
+async function broadcastGroup(data) {
+
+  for (const client of wss.clients) {
+
+    if (
+      client.readyState === WebSocket.OPEN &&
+      client.username
+    ) {
+      send(client, data);
     }
-  );
-
-  scrollBottom();
+  }
 }
 
-function appendMessage(
-  message,
-  group,
-  scroll = true
-) {
-  const container =
-    document.getElementById(
-      "messages"
-    );
+async function addAutomaticContacts(username) {
 
-  const empty =
-    container.querySelector(
-      ".empty"
-    );
+  /*
+   * Jeder neue Benutzer bekommt
+   * beide Admins automatisch.
+   */
 
-  if (empty) {
-    empty.remove();
-  }
+  for (const admin of GROUP_ADMINS) {
 
-  const sender =
-    group
-      ? message.username
-      : message.from;
+    if (admin === username) {
+      continue;
+    }
 
-  const mine =
-    sender === me;
-
-  const row =
-    document.createElement(
-      "div"
-    );
-
-  row.className =
-    "msg-row" +
-    (mine ? " me" : "");
-
-  const box =
-    document.createElement(
-      "div"
-    );
-
-  box.className =
-    "msg";
-
-  if (
-    group &&
-    !mine
-  ) {
-    const name =
-      document.createElement(
-        "div"
+    const adminExists =
+      await pool.query(
+        `
+        SELECT 1
+        FROM users
+        WHERE username = $1
+        `,
+        [admin]
       );
 
-    name.className =
-      "msg-user";
+    if (!adminExists.rowCount) {
+      continue;
+    }
 
-    name.textContent =
-      sender +
+    await pool.query(
+      `
+      INSERT INTO friends
       (
-        ADMIN_NAMES.includes(
-          sender
-        )
-          ? " 👑"
-          : ""
-      );
-
-    box.appendChild(
-      name
-    );
-  }
-
-  if (message.imageUrl) {
-
-    const img =
-      document.createElement(
-        "img"
-      );
-
-    img.className =
-      "msg-image";
-
-    img.src =
-      message.imageUrl;
-
-    img.loading =
-      "lazy";
-
-    img.onclick = () => {
-      window.open(
-        message.imageUrl,
-        "_blank"
-      );
-    };
-
-    box.appendChild(
-      img
-    );
-  }
-
-  if (message.text) {
-
-    const text =
-      document.createElement(
-        "div"
-      );
-
-    text.textContent =
-      message.text;
-
-    box.appendChild(
-      text
-    );
-  }
-
-  const time =
-    document.createElement(
-      "div"
+        username,
+        friend_username
+      )
+      VALUES ($1,$2)
+      ON CONFLICT DO NOTHING
+      `,
+      [
+        username,
+        admin
+      ]
     );
 
-  time.className =
-    "msg-time";
+    /*
+     * Und die Admins bekommen
+     * den neuen Benutzer automatisch.
+     */
 
-  time.textContent =
-    formatTime(
-      message.time
+    await pool.query(
+      `
+      INSERT INTO friends
+      (
+        username,
+        friend_username
+      )
+      VALUES ($1,$2)
+      ON CONFLICT DO NOTHING
+      `,
+      [
+        admin,
+        username
+      ]
     );
-
-  box.appendChild(
-    time
-  );
-
-  row.appendChild(
-    box
-  );
-
-  container.appendChild(
-    row
-  );
-
-  if (scroll) {
-    scrollBottom();
   }
 }
 
-function sendMessage() {
+async function addExistingUsersToAdmins(username) {
 
-  const input =
-    document.getElementById(
-      "messageInput"
-    );
+  for (const admin of GROUP_ADMINS) {
 
-  const text =
-    input.value.trim();
-
-  if (!text) return;
-
-  if (
-    currentChat ===
-    "general"
-  ) {
-
-    if (!isAdminUser) {
-      alert(
-        "Nur die Admins können im Allgemein-Chat schreiben."
-      );
-      return;
+    if (admin === username) {
+      continue;
     }
 
-    send({
-      type:
-        "groupMessage",
-      text
-    });
-
-  } else {
-
-    send({
-      type:
-        "message",
-      to:
-        currentChat,
-      text
-    });
-
+    await pool.query(
+      `
+      INSERT INTO friends
+      (
+        username,
+        friend_username
+      )
+      VALUES ($1,$2)
+      ON CONFLICT DO NOTHING
+      `,
+      [
+        admin,
+        username
+      ]
+    );
   }
-
-  input.value = "";
 }
 
-function sendImage() {
+function getFile(reqUrl) {
 
-  const input =
-    document.getElementById(
-      "imageInput"
-    );
+  let requested =
+    reqUrl.split("?")[0];
+
+  if (
+    requested === "/" ||
+    requested === ""
+  ) {
+    requested = "/index.html";
+  }
+
+  /*
+   * Bilder aus uploads erlauben.
+   */
 
   const file =
-    input.files[0];
+    path.normalize(
+      path.join(
+        __dirname,
+        requested
+      )
+    );
 
-  if (!file) return;
+  const root =
+    path.normalize(__dirname);
 
   if (
-    file.size >
-    8 * 1024 * 1024
+    file !== root &&
+    !file.startsWith(root + path.sep)
   ) {
-    alert(
-      "Das Bild darf maximal 8 MB groß sein."
-    );
-
-    input.value = "";
-    return;
+    return null;
   }
 
-  if (
-    currentChat ===
-      "general" &&
-    !isAdminUser
-  ) {
-    alert(
-      "Nur die Admins können im Allgemein-Chat Bilder senden."
-    );
-
-    input.value = "";
-    return;
-  }
-
-  const reader =
-    new FileReader();
-
-  reader.onload = () => {
-
-    window.pendingImageTarget =
-      currentChat;
-
-    send({
-      type:
-        "uploadImage",
-      image:
-        reader.result
-    });
-
-  };
-
-  reader.readAsDataURL(
-    file
-  );
-
-  input.value = "";
+  return file;
 }
 
-function handleEnter(event) {
+const server =
+  http.createServer(
+    (req, res) => {
 
-  if (
-    event.key === "Enter" &&
-    !event.shiftKey
-  ) {
-    event.preventDefault();
-    sendMessage();
-  }
-}
+      if (req.url === "/health") {
 
-function scrollBottom() {
-
-  const box =
-    document.getElementById(
-      "messages"
-    );
-
-  box.scrollTop =
-    box.scrollHeight;
-}
-
-function formatTime(time) {
-
-  if (!time) return "";
-
-  return new Date(
-    Number(time)
-  ).toLocaleTimeString(
-    "de-DE",
-    {
-      hour: "2-digit",
-      minute: "2-digit"
-    }
-  );
-}
-
-function openSettings() {
-
-  const saved =
-    localStorage.getItem(
-      "fortx-theme"
-    ) || "dark";
-
-  document
-    .getElementById(
-      "themeSelect"
-    ).value = saved;
-
-  document
-    .getElementById(
-      "settingsModal"
-    )
-    .classList.remove(
-      "hidden"
-    );
-}
-
-function closeSettings() {
-
-  document
-    .getElementById(
-      "settingsModal"
-    )
-    .classList.add(
-      "hidden"
-    );
-}
-
-function changeTheme() {
-
-  const theme =
-    document.getElementById(
-      "themeSelect"
-    ).value;
-
-  document.body.classList.toggle(
-    "light",
-    theme === "light"
-  );
-
-  localStorage.setItem(
-    "fortx-theme",
-    theme
-  );
-}
-
-function showUsers() {
-
-  document
-    .getElementById(
-      "usersModal"
-    )
-    .classList.remove(
-      "hidden"
-    );
-
-  send({
-    type:
-      "getUsers"
-  });
-}
-
-function closeUsers() {
-
-  document
-    .getElementById(
-      "usersModal"
-    )
-    .classList.add(
-      "hidden"
-    );
-}
-
-function renderUsers(users) {
-
-  const list =
-    document.getElementById(
-      "usersList"
-    );
-
-  list.innerHTML = "";
-
-  users.forEach(
-    user => {
-
-      const row =
-        document.createElement(
-          "div"
-        );
-
-      row.style.cssText =
-        `
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        padding:12px 0;
-        border-bottom:1px solid var(--border);
-        `;
-
-      const name =
-        document.createElement(
-          "span"
-        );
-
-      name.textContent =
-        user.username;
-
-      const admin =
-        ADMIN_NAMES.includes(
-          user.username
-        );
-
-      if (admin) {
-        name.textContent +=
-          " 👑";
-      }
-
-      const reset =
-        document.createElement(
-          "button"
-        );
-
-      reset.textContent =
-        "Reset";
-
-      reset.style.cssText =
-        `
-        border:1px solid var(--border);
-        background:var(--panel2);
-        color:var(--text);
-        border-radius:9px;
-        padding:7px 10px;
-        `;
-
-      reset.onclick = () => {
-
-        send({
-          type:
-            "createPasswordReset",
-          username:
-            user.username
+        res.writeHead(200, {
+          "Content-Type":
+            "application/json"
         });
 
+        res.end(
+          JSON.stringify({
+            status: "ok"
+          })
+        );
+
+        return;
+      }
+
+      const file =
+        getFile(
+          req.url || "/"
+        );
+
+      if (!file) {
+
+        res.writeHead(403);
+        res.end("Forbidden");
+
+        return;
+      }
+
+      const ext =
+        path.extname(file)
+          .toLowerCase();
+
+      const types = {
+
+        ".html":
+          "text/html; charset=utf-8",
+
+        ".js":
+          "application/javascript; charset=utf-8",
+
+        ".json":
+          "application/json; charset=utf-8",
+
+        ".css":
+          "text/css; charset=utf-8",
+
+        ".png":
+          "image/png",
+
+        ".jpg":
+          "image/jpeg",
+
+        ".jpeg":
+          "image/jpeg",
+
+        ".gif":
+          "image/gif",
+
+        ".webp":
+          "image/webp",
+
+        ".svg":
+          "image/svg+xml",
+
+        ".ico":
+          "image/x-icon"
       };
 
-      row.appendChild(
-        name
-      );
+      fs.readFile(
+        file,
+        (error, data) => {
 
-      row.appendChild(
-        reset
-      );
+          if (error) {
 
-      list.appendChild(
-        row
+            res.writeHead(404);
+
+            res.end(
+              "Datei nicht gefunden"
+            );
+
+            return;
+          }
+
+          res.writeHead(200, {
+            "Content-Type":
+              types[ext] ||
+              "application/octet-stream"
+          });
+
+          res.end(data);
+        }
       );
     }
   );
-}
 
-function logout() {
-  location.reload();
-}
+const wss =
+  new WebSocket.Server({
+    server
+  });
 
-function escapeHtml(value) {
+wss.on(
+  "connection",
+  socket => {
 
-  return String(value)
-    .replaceAll(
-      "&",
-      "&amp;"
-    )
-    .replaceAll(
-      "<",
-      "&lt;"
-    )
-    .replaceAll(
-      ">",
-      "&gt;"
-    )
-    .replaceAll(
-      '"',
-      "&quot;"
-    )
-    .replaceAll(
-      "'",
-      "&#039;"
+    console.log(
+      "📱 Gerät verbunden"
     );
-}
 
-/* THEME */
+    socket.on(
+      "message",
+      async raw => {
 
-const savedTheme =
-  localStorage.getItem(
-    "fortx-theme"
-  ) || "dark";
+        try {
 
-document.body.classList.toggle(
-  "light",
-  savedTheme === "light"
+          const data =
+            JSON.parse(
+              raw.toString()
+            );
+
+          /*
+           * =========================
+           * REGISTRIERUNG
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "register"
+          ) {
+
+            const username =
+              String(
+                data.username || ""
+              )
+                .trim()
+                .toLowerCase();
+
+            const password =
+              String(
+                data.password || ""
+              );
+
+            const accessCode =
+              String(
+                data.accessCode || ""
+              );
+
+            if (!ACCESS_CODE) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "ACCESS_CODE fehlt auf Render."
+              });
+
+              return;
+            }
+
+            if (
+              accessCode !==
+              ACCESS_CODE
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Falscher Zugangscode."
+              });
+
+              return;
+            }
+
+            if (
+              !/^[a-z0-9_]{3,30}$/
+                .test(username)
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzername: 3–30 Zeichen."
+              });
+
+              return;
+            }
+
+            if (
+              password.length < 8
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Passwort muss mindestens 8 Zeichen haben."
+              });
+
+              return;
+            }
+
+            const exists =
+              await pool.query(
+                `
+                SELECT 1
+                FROM users
+                WHERE username = $1
+                `,
+                [username]
+              );
+
+            if (exists.rowCount) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzername bereits vergeben."
+              });
+
+              return;
+            }
+
+            await pool.query(
+              `
+              INSERT INTO users
+              (
+                username,
+                password_hash
+              )
+              VALUES ($1,$2)
+              `,
+              [
+                username,
+                hashPassword(
+                  password
+                )
+              ]
+            );
+
+            /*
+             * Automatische Kontakte.
+             */
+
+            await addAutomaticContacts(
+              username
+            );
+
+            await addExistingUsersToAdmins(
+              username
+            );
+
+            socket.username =
+              username;
+
+            send(socket, {
+
+              type:
+                "registered",
+
+              username,
+
+              isAdmin:
+                isAdmin(username)
+
+            });
+
+            return;
+          }
+
+          /*
+           * =========================
+           * LOGIN
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "login"
+          ) {
+
+            const username =
+              String(
+                data.username || ""
+              )
+                .trim()
+                .toLowerCase();
+
+            const password =
+              String(
+                data.password || ""
+              );
+
+            const result =
+              await pool.query(
+                `
+                SELECT
+                  username,
+                  password_hash
+                FROM users
+                WHERE username = $1
+                `,
+                [username]
+              );
+
+            if (
+              !result.rowCount ||
+              !verifyPassword(
+                password,
+                result.rows[0]
+                  .password_hash
+              )
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzername oder Passwort falsch."
+              });
+
+              return;
+            }
+
+            /*
+             * Auch bestehende Benutzer
+             * bekommen beim Login automatisch
+             * die Admins.
+             */
+
+            await addAutomaticContacts(
+              username
+            );
+
+            await addExistingUsersToAdmins(
+              username
+            );
+
+            socket.username =
+              username;
+
+            send(socket, {
+
+              type:
+                "loggedIn",
+
+              username,
+
+              isAdmin:
+                isAdmin(username)
+
+            });
+
+            return;
+          }
+
+          /*
+           * =========================
+           * PASSWORT VERGESSEN
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "forgotPassword"
+          ) {
+
+            const username =
+              String(
+                data.username || ""
+              )
+                .trim()
+                .toLowerCase();
+
+            if (!username) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Bitte Benutzername eingeben."
+              });
+
+              return;
+            }
+
+            const result =
+              await pool.query(
+                `
+                SELECT username
+                FROM users
+                WHERE username = $1
+                `,
+                [username]
+              );
+
+            send(socket, {
+
+              type:
+                "forgotPasswordSent",
+
+              text:
+                "Wenn das Konto existiert, wurde eine Anfrage an die Admins gesendet."
+
+            });
+
+            if (
+              !result.rowCount
+            ) {
+              return;
+            }
+
+            const request = {
+
+              type:
+                "passwordResetRequest",
+
+              username,
+
+              time:
+                Date.now()
+            };
+
+            for (
+              const client of
+                wss.clients
+            ) {
+
+              if (
+                client.readyState ===
+                  WebSocket.OPEN &&
+                client.username &&
+                isAdmin(
+                  client.username
+                )
+              ) {
+
+                send(
+                  client,
+                  request
+                );
+              }
+            }
+
+            return;
+          }
+
+          /*
+           * =========================
+           * ADMIN RESET LINK
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "createPasswordReset"
+          ) {
+
+            const admin =
+              socket.username;
+
+            if (
+              !isAdmin(admin)
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Nur Admins dürfen Reset-Links erstellen."
+              });
+
+              return;
+            }
+
+            const username =
+              String(
+                data.username || ""
+              )
+                .trim()
+                .toLowerCase();
+
+            const user =
+              await pool.query(
+                `
+                SELECT username
+                FROM users
+                WHERE username = $1
+                `,
+                [username]
+              );
+
+            if (!user.rowCount) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzer nicht gefunden."
+              });
+
+              return;
+            }
+
+            await pool.query(
+              `
+              DELETE FROM password_resets
+              WHERE username = $1
+              `,
+              [username]
+            );
+
+            const token =
+              crypto
+                .randomBytes(32)
+                .toString("hex");
+
+            await pool.query(
+              `
+              INSERT INTO password_resets
+              (
+                token_hash,
+                username,
+                expires_at
+              )
+              VALUES (
+                $1,
+                $2,
+                NOW() +
+                INTERVAL '15 minutes'
+              )
+              `,
+              [
+                hashToken(token),
+                username
+              ]
+            );
+
+            const baseUrl =
+              APP_URL ||
+              `https://${
+                process.env
+                  .RENDER_EXTERNAL_HOSTNAME ||
+                "localhost"
+              }`;
+
+            const resetUrl =
+              `${baseUrl}/?reset=${token}`;
+
+            send(socket, {
+
+              type:
+                "passwordResetLink",
+
+              username,
+
+              resetUrl,
+
+              expiresIn:
+                15 * 60 * 1000
+
+            });
+
+            return;
+          }
+
+          /*
+           * =========================
+           * PASSWORT ÄNDERN
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "resetPassword"
+          ) {
+
+            const token =
+              String(
+                data.token || ""
+              );
+
+            const password =
+              String(
+                data.password || ""
+              );
+
+            if (
+              !token ||
+              password.length < 8
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Das neue Passwort muss mindestens 8 Zeichen haben."
+              });
+
+              return;
+            }
+
+            const result =
+              await pool.query(
+                `
+                SELECT username
+                FROM password_resets
+                WHERE token_hash = $1
+                AND used = FALSE
+                AND expires_at > NOW()
+                `,
+                [hashToken(token)]
+              );
+
+            if (
+              !result.rowCount
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Reset-Link ungültig oder abgelaufen."
+              });
+
+              return;
+            }
+
+            const username =
+              result.rows[0]
+                .username;
+
+            await pool.query(
+              `
+              UPDATE users
+              SET password_hash = $1
+              WHERE username = $2
+              `,
+              [
+                hashPassword(
+                  password
+                ),
+                username
+              ]
+            );
+
+            await pool.query(
+              `
+              UPDATE password_resets
+              SET used = TRUE
+              WHERE token_hash = $1
+              `,
+              [hashToken(token)]
+            );
+
+            send(socket, {
+
+              type:
+                "passwordResetSuccess",
+
+              username
+
+            });
+
+            return;
+          }
+
+          /*
+           * =========================
+           * FREUND HINZUFÜGEN
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "addFriend"
+          ) {
+
+            if (!socket.username) {
+              return;
+            }
+
+            const friend =
+              String(
+                data.username || ""
+              )
+                .trim()
+                .toLowerCase();
+
+            if (
+              !friend ||
+              friend ===
+                socket.username
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Ungültiger Benutzer."
+              });
+
+              return;
+            }
+
+            const user =
+              await pool.query(
+                `
+                SELECT 1
+                FROM users
+                WHERE username = $1
+                `,
+                [friend]
+              );
+
+            if (!user.rowCount) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzer nicht gefunden."
+              });
+
+              return;
+            }
+
+            await pool.query(
+              `
+              INSERT INTO friends
+              (
+                username,
+                friend_username
+              )
+              VALUES ($1,$2)
+              ON CONFLICT DO NOTHING
+              `,
+              [
+                socket.username,
+                friend
+              ]
+            );
+
+            send(socket, {
+
+              type:
+                "friendAdded",
+
+              username:
+                friend
+            });
+
+            return;
+          }
+
+          /*
+           * =========================
+           * FREUNDE LADEN
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "getFriends"
+          ) {
+
+            if (!socket.username) {
+              return;
+            }
+
+            /*
+             * Sicherheit:
+             * Admins bekommen alle Benutzer.
+             * Normale Benutzer bekommen mindestens
+             * beide Admins.
+             */
+
+            await addAutomaticContacts(
+              socket.username
+            );
+
+            await addExistingUsersToAdmins(
+              socket.username
+            );
+
+            if (isAdmin(socket.username)) {
+
+              const result =
+                await pool.query(
+                  `
+                  SELECT username
+                  FROM users
+                  WHERE username <> $1
+                  ORDER BY username
+                  `,
+                  [socket.username]
+                );
+
+              send(socket, {
+
+                type:
+                  "friends",
+
+                friends:
+                  result.rows.map(
+                    row =>
+                      row.username
+                  )
+              });
+
+            } else {
+
+              const result =
+                await pool.query(
+                  `
+                  SELECT
+                    friend_username AS username
+                  FROM friends
+                  WHERE username = $1
+                  ORDER BY friend_username
+                  `,
+                  [socket.username]
+                );
+
+              send(socket, {
+
+                type:
+                  "friends",
+
+                friends:
+                  result.rows.map(
+                    row =>
+                      row.username
+                  )
+              });
+            }
+
+            return;
+          }
+
+          /*
+           * =========================
+           * ALLE BENUTZER
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "getUsers"
+          ) {
+
+            if (
+              !socket.username ||
+              !isAdmin(
+                socket.username
+              )
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Nur Admins können Benutzer sehen."
+              });
+
+              return;
+            }
+
+            const result =
+              await pool.query(
+                `
+                SELECT
+                  username,
+                  created_at
+                FROM users
+                ORDER BY created_at ASC
+                `
+              );
+
+            send(socket, {
+
+              type:
+                "users",
+
+              users:
+                result.rows.map(
+                  row => ({
+                    username:
+                      row.username,
+
+                    createdAt:
+                      row.created_at
+                  })
+                )
+            });
+
+            return;
+          }
+
+          /*
+           * =========================
+           * PRIVATE NACHRICHTEN LADEN
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "getPrivateMessages"
+          ) {
+
+            if (!socket.username) {
+              return;
+            }
+
+            const other =
+              String(
+                data.username || ""
+              )
+                .trim()
+                .toLowerCase();
+
+            const result =
+              await pool.query(
+                `
+                SELECT
+                  sender AS "from",
+                  receiver AS "to",
+                  text,
+                  image_url AS "imageUrl",
+                  EXTRACT(
+                    EPOCH FROM created_at
+                  ) * 1000 AS time
+                FROM messages
+                WHERE is_group = FALSE
+                AND (
+                  (
+                    sender = $1
+                    AND receiver = $2
+                  )
+                  OR
+                  (
+                    sender = $2
+                    AND receiver = $1
+                  )
+                )
+                ORDER BY created_at ASC
+                `,
+                [
+                  socket.username,
+                  other
+                ]
+              );
+
+            send(socket, {
+
+              type:
+                "privateMessages",
+
+              username:
+                other,
+
+              messages:
+                result.rows.map(
+                  row => ({
+                    ...row,
+                    time:
+                      Number(
+                        row.time
+                      )
+                  })
+                )
+            });
+
+            return;
+          }
+
+          /*
+           * =========================
+           * ALLGEMEIN LADEN
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "getGroupMessages"
+          ) {
+
+            if (!socket.username) {
+              return;
+            }
+
+            await cleanOldGroupMessages();
+
+            const result =
+              await pool.query(
+                `
+                SELECT
+                  sender AS username,
+                  text,
+                  image_url AS "imageUrl",
+                  EXTRACT(
+                    EPOCH FROM created_at
+                  ) * 1000 AS time
+                FROM messages
+                WHERE is_group = TRUE
+                ORDER BY created_at ASC
+                `
+              );
+
+            send(socket, {
+
+              type:
+                "groupMessages",
+
+              messages:
+                result.rows.map(
+                  row => ({
+                    ...row,
+                    time:
+                      Number(
+                        row.time
+                      )
+                  })
+                )
+            });
+
+            return;
+          }
+
+          /*
+           * =========================
+           * ALLGEMEIN NACHRICHT
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "groupMessage"
+          ) {
+
+            const username =
+              socket.username;
+
+            if (!username) {
+              return;
+            }
+
+            if (
+              !isAdmin(username)
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Du darfst im Gruppenchat nur lesen."
+              });
+
+              return;
+            }
+
+            const text =
+              data.text
+                ? String(data.text).trim()
+                : null;
+
+            const imageUrl =
+              data.imageUrl
+                ? String(data.imageUrl)
+                : null;
+
+            if (!text && !imageUrl) {
+              return;
+            }
+
+            const result =
+              await pool.query(
+                `
+                INSERT INTO messages
+                (
+                  sender,
+                  text,
+                  image_url,
+                  is_group
+                )
+                VALUES (
+                  $1,$2,$3,TRUE
+                )
+                RETURNING
+                  sender,
+                  text,
+                  image_url AS "imageUrl",
+                  EXTRACT(
+                    EPOCH FROM created_at
+                  ) * 1000 AS time
+                `,
+                [
+                  username,
+                  text,
+                  imageUrl
+                ]
+              );
+
+            const message = {
+
+              username:
+                result.rows[0]
+                  .sender,
+
+              text:
+                result.rows[0]
+                  .text,
+
+              imageUrl:
+                result.rows[0]
+                  .imageUrl,
+
+              time:
+                Number(
+                  result.rows[0]
+                    .time
+                ),
+
+              isAdmin:
+                isAdmin(username)
+            };
+
+            await broadcastGroup({
+
+              type:
+                "groupMessage",
+
+              message
+            });
+
+            return;
+          }
+
+          /*
+           * =========================
+           * PRIVATE NACHRICHT
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "message"
+          ) {
+
+            const from =
+              socket.username;
+
+            const to =
+              String(
+                data.to || ""
+              )
+                .trim()
+                .toLowerCase();
+
+            const text =
+              data.text
+                ? String(data.text).trim()
+                : null;
+
+            const imageUrl =
+              data.imageUrl
+                ? String(data.imageUrl)
+                : null;
+
+            if (
+              !from ||
+              !to ||
+              (!text && !imageUrl)
+            ) {
+              return;
+            }
+
+            const target =
+              await pool.query(
+                `
+                SELECT 1
+                FROM users
+                WHERE username = $1
+                `,
+                [to]
+              );
+
+            if (!target.rowCount) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzer nicht gefunden."
+              });
+
+              return;
+            }
+
+            const result =
+              await pool.query(
+                `
+                INSERT INTO messages
+                (
+                  sender,
+                  receiver,
+                  text,
+                  image_url,
+                  is_group
+                )
+                VALUES (
+                  $1,$2,$3,$4,FALSE
+                )
+                RETURNING
+                  EXTRACT(
+                    EPOCH FROM created_at
+                  ) * 1000 AS time
+                `,
+                [
+                  from,
+                  to,
+                  text,
+                  imageUrl
+                ]
+              );
+
+            const message = {
+
+              type:
+                "message",
+
+              from,
+
+              to,
+
+              text,
+
+              imageUrl,
+
+              time:
+                Number(
+                  result.rows[0]
+                    .time
+                ),
+
+              senderIsAdmin:
+                isAdmin(from)
+            };
+
+            send(
+              socket,
+              message
+            );
+
+            for (
+              const client of
+                wss.clients
+            ) {
+
+              if (
+                client.readyState ===
+                  WebSocket.OPEN &&
+                client.username === to
+              ) {
+
+                send(
+                  client,
+                  message
+                );
+              }
+            }
+
+            return;
+          }
+
+          /*
+           * =========================
+           * BILD HOCHLADEN
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "uploadImage"
+          ) {
+
+            if (!socket.username) {
+              return;
+            }
+
+            const image =
+              sanitizeImageData(
+                data.image
+              );
+
+            if (!image) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Bild ungültig oder größer als 8 MB."
+              });
+
+              return;
+            }
+
+            /*
+             * Normale Benutzer dürfen
+             * Bilder privat senden.
+             *
+             * Im Allgemein-Chat nur Admins.
+             */
+
+            if (
+              data.target ===
+                "general" &&
+              !isAdmin(
+                socket.username
+              )
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Nur Admins können Bilder im Allgemein-Chat senden."
+              });
+
+              return;
+            }
+
+            const url =
+              saveImage(
+                data.image
+              );
+
+            send(socket, {
+
+              type:
+                "imageUploaded",
+
+              url,
+
+              target:
+                data.target || null,
+
+              success:
+                true
+            });
+
+            return;
+          }
+
+        } catch (error) {
+
+          console.error(
+            "❌ Fehler:",
+            error
+          );
+
+          send(socket, {
+
+            type:
+              "error",
+
+            text:
+              "Serverfehler: " +
+              error.message
+          });
+        }
+      }
+    );
+
+    socket.on(
+      "close",
+      () => {
+
+        if (
+          socket.username
+        ) {
+
+          console.log(
+            `📱 ${socket.username} getrennt`
+          );
+        }
+      }
+    );
+  }
 );
 
-connect();
+setInterval(
+  () => {
 
-/* RESET-LINK */
+    cleanOldGroupMessages()
+      .catch(error =>
+        console.error(
+          "Gruppenchat-Bereinigung:",
+          error.message
+        )
+      );
 
-const resetToken =
-  new URLSearchParams(
-    location.search
-  ).get("reset");
+    cleanResetTokens()
+      .catch(error =>
+        console.error(
+          "Reset-Bereinigung:",
+          error.message
+        )
+      );
 
-if (resetToken) {
+  },
+  10 * 60 * 1000
+);
 
-  const password =
-    prompt(
-      "Neues Passwort eingeben (mindestens 8 Zeichen):"
+initDatabase()
+  .then(() => {
+
+    server.listen(
+      PORT,
+      "0.0.0.0",
+      () => {
+
+        console.log(
+          `🚀 FORTX Server läuft auf Port ${PORT}`
+        );
+
+        console.log(
+          "👑 Admins:",
+          GROUP_ADMINS.join(", ")
+        );
+      }
+    );
+  })
+  .catch(error => {
+
+    console.error(
+      "❌ Datenbankfehler:",
+      error
     );
 
-  if (password) {
-
-    setTimeout(() => {
-
-      send({
-        type:
-          "resetPassword",
-        token:
-          resetToken,
-        password
-      });
-
-    }, 700);
-
-  }
-}
-</script>
-
-</body>
-</html>
+    process.exit(1);
+  });
