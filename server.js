@@ -14,6 +14,8 @@ const GROUP_ADMINS = [
   "thcliquide"
 ];
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
 function isAdmin(username) {
   return GROUP_ADMINS.includes(
     String(username || "")
@@ -89,6 +91,12 @@ function hashToken(token) {
     .digest("hex");
 }
 
+/*
+ * =========================
+ * DATENBANK
+ * =========================
+ */
+
 async function initDatabase() {
 
   await pool.query(`
@@ -118,15 +126,43 @@ async function initDatabase() {
     )
   `);
 
+  /*
+   * Alte messages-Tabelle behalten.
+   * image_data und message_type werden
+   * automatisch ergänzt.
+   */
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
+
       sender TEXT NOT NULL,
+
       receiver TEXT,
-      text TEXT NOT NULL,
+
+      text TEXT,
+
       is_group BOOLEAN DEFAULT FALSE,
+
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  await pool.query(`
+    ALTER TABLE messages
+    ADD COLUMN IF NOT EXISTS
+    message_type TEXT DEFAULT 'text'
+  `);
+
+  await pool.query(`
+    ALTER TABLE messages
+    ADD COLUMN IF NOT EXISTS
+    image_data TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE messages
+    ALTER COLUMN text DROP NOT NULL
   `);
 
   await pool.query(`
@@ -145,6 +181,112 @@ async function initDatabase() {
 
   console.log("🗄️ Datenbank bereit");
 }
+
+/*
+ * =========================
+ * AUTOMATISCHE KONTAKTE
+ * =========================
+ */
+
+async function addAutomaticContacts(username) {
+
+  username =
+    String(username || "")
+      .trim()
+      .toLowerCase();
+
+  /*
+   * Neuer Benutzer bekommt
+   * beide Admins.
+   */
+
+  for (const admin of GROUP_ADMINS) {
+
+    /*
+     * Nur eintragen, wenn der Admin
+     * bereits als Benutzer existiert.
+     */
+
+    const adminExists =
+      await pool.query(
+        `
+        SELECT 1
+        FROM users
+        WHERE username = $1
+        `,
+        [admin]
+      );
+
+    if (adminExists.rowCount) {
+
+      await pool.query(
+        `
+        INSERT INTO friends
+        (
+          username,
+          friend_username
+        )
+        VALUES ($1, $2)
+        ON CONFLICT DO NOTHING
+        `,
+        [
+          username,
+          admin
+        ]
+      );
+
+      /*
+       * Admin bekommt den neuen
+       * Benutzer automatisch.
+       */
+
+      await pool.query(
+        `
+        INSERT INTO friends
+        (
+          username,
+          friend_username
+        )
+        VALUES ($1, $2)
+        ON CONFLICT DO NOTHING
+        `,
+        [
+          admin,
+          username
+        ]
+      );
+    }
+  }
+}
+
+/*
+ * Bei jedem Login/Register werden
+ * die automatischen Kontakte geprüft.
+ */
+
+async function ensureAutomaticContacts(username) {
+
+  try {
+
+    await addAutomaticContacts(
+      username
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ Kontakte konnten nicht erstellt werden:",
+      error.message
+    );
+
+  }
+}
+
+/*
+ * =========================
+ * BEREINIGUNG
+ * =========================
+ */
 
 async function cleanOldGroupMessages() {
 
@@ -167,6 +309,12 @@ async function cleanResetTokens() {
 
 }
 
+/*
+ * =========================
+ * GRUPPENCHAT
+ * =========================
+ */
+
 async function broadcastGroup(data) {
 
   for (const client of wss.clients) {
@@ -176,12 +324,18 @@ async function broadcastGroup(data) {
         WebSocket.OPEN &&
       client.username
     ) {
+
       send(client, data);
+
     }
-
   }
-
 }
+
+/*
+ * =========================
+ * DATEIEN
+ * =========================
+ */
 
 function getFile(reqUrl) {
 
@@ -192,7 +346,9 @@ function getFile(reqUrl) {
     requested === "/" ||
     requested === ""
   ) {
+
     requested = "/index.html";
+
   }
 
   const file =
@@ -208,11 +364,19 @@ function getFile(reqUrl) {
       path.normalize(__dirname)
     )
   ) {
+
     return null;
+
   }
 
   return file;
 }
+
+/*
+ * =========================
+ * HTTP SERVER
+ * =========================
+ */
 
 const server =
   http.createServer(
@@ -240,7 +404,10 @@ const server =
       if (!file) {
 
         res.writeHead(403);
-        res.end("Forbidden");
+
+        res.end(
+          "Forbidden"
+        );
 
         return;
       }
@@ -270,6 +437,12 @@ const server =
 
         ".jpeg":
           "image/jpeg",
+
+        ".webp":
+          "image/webp",
+
+        ".gif":
+          "image/gif",
 
         ".svg":
           "image/svg+xml",
@@ -308,12 +481,16 @@ const server =
     }
   );
 
+/*
+ * =========================
+ * WEBSOCKET
+ * =========================
+ */
 
 const wss =
   new WebSocket.Server({
     server
   });
-
 
 wss.on(
   "connection",
@@ -322,7 +499,6 @@ wss.on(
     console.log(
       "📱 Gerät verbunden"
     );
-
 
     socket.on(
       "message",
@@ -334,7 +510,6 @@ wss.on(
             JSON.parse(
               raw.toString()
             );
-
 
           /*
            * =========================
@@ -364,7 +539,6 @@ wss.on(
                 data.accessCode || ""
               );
 
-
             if (!ACCESS_CODE) {
 
               send(socket, {
@@ -375,7 +549,6 @@ wss.on(
 
               return;
             }
-
 
             if (
               accessCode !==
@@ -391,7 +564,6 @@ wss.on(
               return;
             }
 
-
             if (
               !/^[a-z0-9_]{3,30}$/
                 .test(username)
@@ -406,7 +578,6 @@ wss.on(
               return;
             }
 
-
             if (
               password.length < 8
             ) {
@@ -420,7 +591,6 @@ wss.on(
               return;
             }
 
-
             const exists =
               await pool.query(
                 `
@@ -430,7 +600,6 @@ wss.on(
                 `,
                 [username]
               );
-
 
             if (exists.rowCount) {
 
@@ -442,7 +611,6 @@ wss.on(
 
               return;
             }
-
 
             await pool.query(
               `
@@ -461,10 +629,16 @@ wss.on(
               ]
             );
 
+            /*
+             * AUTOMATISCHE KONTAKTE
+             */
+
+            await ensureAutomaticContacts(
+              username
+            );
 
             socket.username =
               username;
-
 
             send(socket, {
 
@@ -478,10 +652,39 @@ wss.on(
 
             });
 
+            /*
+             * Admins bekommen direkt
+             * Bescheid, dass ein neuer
+             * Benutzer registriert wurde.
+             */
+
+            for (
+              const client of
+                wss.clients
+            ) {
+
+              if (
+                client.readyState ===
+                  WebSocket.OPEN &&
+                isAdmin(
+                  client.username
+                )
+              ) {
+
+                send(client, {
+
+                  type:
+                    "newUser",
+
+                  username
+
+                });
+
+              }
+            }
 
             return;
           }
-
 
           /*
            * =========================
@@ -506,7 +709,6 @@ wss.on(
                 data.password || ""
               );
 
-
             const result =
               await pool.query(
                 `
@@ -518,7 +720,6 @@ wss.on(
                 `,
                 [username]
               );
-
 
             if (
               !result.rowCount ||
@@ -538,10 +739,12 @@ wss.on(
               return;
             }
 
+            await ensureAutomaticContacts(
+              username
+            );
 
             socket.username =
               username;
-
 
             send(socket, {
 
@@ -555,10 +758,8 @@ wss.on(
 
             });
 
-
             return;
           }
-
 
           /*
            * =========================
@@ -578,7 +779,6 @@ wss.on(
                 .trim()
                 .toLowerCase();
 
-
             if (!username) {
 
               send(socket, {
@@ -590,7 +790,6 @@ wss.on(
               return;
             }
 
-
             const result =
               await pool.query(
                 `
@@ -600,7 +799,6 @@ wss.on(
                 `,
                 [username]
               );
-
 
             send(socket, {
 
@@ -612,13 +810,13 @@ wss.on(
 
             });
 
-
             if (
               !result.rowCount
             ) {
-              return;
-            }
 
+              return;
+
+            }
 
             const request = {
 
@@ -632,7 +830,6 @@ wss.on(
 
             };
 
-
             for (
               const client of
                 wss.clients
@@ -641,7 +838,6 @@ wss.on(
               if (
                 client.readyState ===
                   WebSocket.OPEN &&
-                client.username &&
                 isAdmin(
                   client.username
                 )
@@ -653,12 +849,10 @@ wss.on(
                 );
 
               }
-
             }
 
             return;
           }
-
 
           /*
            * =========================
@@ -674,7 +868,6 @@ wss.on(
             const admin =
               socket.username;
 
-
             if (
               !isAdmin(admin)
             ) {
@@ -688,14 +881,12 @@ wss.on(
               return;
             }
 
-
             const username =
               String(
                 data.username || ""
               )
                 .trim()
                 .toLowerCase();
-
 
             const user =
               await pool.query(
@@ -706,7 +897,6 @@ wss.on(
                 `,
                 [username]
               );
-
 
             if (!user.rowCount) {
 
@@ -719,7 +909,6 @@ wss.on(
               return;
             }
 
-
             await pool.query(
               `
               DELETE FROM password_resets
@@ -728,12 +917,10 @@ wss.on(
               [username]
             );
 
-
             const token =
               crypto
                 .randomBytes(32)
                 .toString("hex");
-
 
             await pool.query(
               `
@@ -757,7 +944,6 @@ wss.on(
               ]
             );
 
-
             const baseUrl =
               APP_URL ||
               `https://${
@@ -766,10 +952,8 @@ wss.on(
                 "localhost"
               }`;
 
-
             const resetUrl =
               `${baseUrl}/?reset=${token}`;
-
 
             send(socket, {
 
@@ -785,10 +969,8 @@ wss.on(
 
             });
 
-
             return;
           }
-
 
           /*
            * =========================
@@ -806,12 +988,10 @@ wss.on(
                 data.token || ""
               );
 
-
             const password =
               String(
                 data.password || ""
               );
-
 
             if (
               !token ||
@@ -827,7 +1007,6 @@ wss.on(
               return;
             }
 
-
             const result =
               await pool.query(
                 `
@@ -839,7 +1018,6 @@ wss.on(
                 `,
                 [hashToken(token)]
               );
-
 
             if (
               !result.rowCount
@@ -854,11 +1032,9 @@ wss.on(
               return;
             }
 
-
             const username =
               result.rows[0]
                 .username;
-
 
             await pool.query(
               `
@@ -874,7 +1050,6 @@ wss.on(
               ]
             );
 
-
             await pool.query(
               `
               UPDATE password_resets
@@ -883,7 +1058,6 @@ wss.on(
               `,
               [hashToken(token)]
             );
-
 
             send(socket, {
 
@@ -894,14 +1068,126 @@ wss.on(
 
             });
 
+            return;
+          }
+
+          /*
+           * =========================
+           * ALLE BENUTZER
+           * =========================
+           *
+           * Nur Admins dürfen die
+           * komplette Benutzerliste
+           * abrufen.
+           */
+
+          if (
+            data.type ===
+            "getUsers"
+          ) {
+
+            if (
+              !isAdmin(
+                socket.username
+              )
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Nur Admins dürfen die Benutzerliste sehen."
+              });
+
+              return;
+            }
+
+            const result =
+              await pool.query(
+                `
+                SELECT
+                  username,
+                  created_at
+                FROM users
+                ORDER BY username ASC
+                `
+              );
+
+            send(socket, {
+
+              type:
+                "users",
+
+              users:
+                result.rows.map(
+                  row => ({
+                    username:
+                      row.username,
+
+                    createdAt:
+                      row.created_at
+                  })
+                )
+
+            });
 
             return;
           }
 
+          /*
+           * =========================
+           * FREUNDE
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "getFriends"
+          ) {
+
+            if (!socket.username) {
+              return;
+            }
+
+            /*
+             * Sicherheitshalber automatische
+             * Admin-Kontakte erneut prüfen.
+             */
+
+            await ensureAutomaticContacts(
+              socket.username
+            );
+
+            const result =
+              await pool.query(
+                `
+                SELECT
+                  friend_username AS username
+                FROM friends
+                WHERE username = $1
+                ORDER BY friend_username
+                `,
+                [socket.username]
+              );
+
+            send(socket, {
+
+              type:
+                "friends",
+
+              friends:
+                result.rows.map(
+                  row =>
+                    row.username
+                )
+
+            });
+
+            return;
+          }
 
           /*
            * =========================
-           * FREUND HINZUFÜGEN
+           * MANUELLER FREUND
            * =========================
            */
 
@@ -914,14 +1200,12 @@ wss.on(
               return;
             }
 
-
             const friend =
               String(
                 data.username || ""
               )
                 .trim()
                 .toLowerCase();
-
 
             if (
               !friend ||
@@ -938,7 +1222,6 @@ wss.on(
               return;
             }
 
-
             const user =
               await pool.query(
                 `
@@ -948,7 +1231,6 @@ wss.on(
                 `,
                 [friend]
               );
-
 
             if (!user.rowCount) {
 
@@ -960,7 +1242,6 @@ wss.on(
 
               return;
             }
-
 
             await pool.query(
               `
@@ -978,7 +1259,6 @@ wss.on(
               ]
             );
 
-
             send(socket, {
 
               type:
@@ -989,58 +1269,8 @@ wss.on(
 
             });
 
-
             return;
           }
-
-
-          /*
-           * =========================
-           * FREUNDE LADEN
-           * =========================
-           */
-
-          if (
-            data.type ===
-            "getFriends"
-          ) {
-
-            if (!socket.username) {
-              return;
-            }
-
-
-            const result =
-              await pool.query(
-                `
-                SELECT
-                  friend_username
-                  AS username
-                FROM friends
-                WHERE username = $1
-                ORDER BY friend_username
-                `,
-                [socket.username]
-              );
-
-
-            send(socket, {
-
-              type:
-                "friends",
-
-              friends:
-                result.rows.map(
-                  row =>
-                    row.username
-                )
-
-            });
-
-
-            return;
-          }
-
 
           /*
            * =========================
@@ -1057,14 +1287,12 @@ wss.on(
               return;
             }
 
-
             const other =
               String(
                 data.username || ""
               )
                 .trim()
                 .toLowerCase();
-
 
             const result =
               await pool.query(
@@ -1073,6 +1301,8 @@ wss.on(
                   sender AS "from",
                   receiver AS "to",
                   text,
+                  message_type AS "messageType",
+                  image_data AS "image",
                   EXTRACT(
                     EPOCH FROM created_at
                   ) * 1000 AS time
@@ -1097,7 +1327,6 @@ wss.on(
                 ]
               );
 
-
             send(socket, {
 
               type:
@@ -1109,7 +1338,23 @@ wss.on(
               messages:
                 result.rows.map(
                   row => ({
-                    ...row,
+                    from:
+                      row.from,
+
+                    to:
+                      row.to,
+
+                    text:
+                      row.text || "",
+
+                    messageType:
+                      row.messageType ||
+                      "text",
+
+                    image:
+                      row.image ||
+                      null,
+
                     time:
                       Number(
                         row.time
@@ -1119,10 +1364,8 @@ wss.on(
 
             });
 
-
             return;
           }
-
 
           /*
            * =========================
@@ -1139,9 +1382,7 @@ wss.on(
               return;
             }
 
-
             await cleanOldGroupMessages();
-
 
             const result =
               await pool.query(
@@ -1158,7 +1399,6 @@ wss.on(
                 `
               );
 
-
             send(socket, {
 
               type:
@@ -1167,20 +1407,28 @@ wss.on(
               messages:
                 result.rows.map(
                   row => ({
-                    ...row,
+                    username:
+                      row.username,
+
+                    text:
+                      row.text,
+
                     time:
                       Number(
                         row.time
+                      ),
+
+                    isAdmin:
+                      isAdmin(
+                        row.username
                       )
                   })
                 )
 
             });
 
-
             return;
           }
-
 
           /*
            * =========================
@@ -1196,17 +1444,9 @@ wss.on(
             const username =
               socket.username;
 
-
             if (!username) {
               return;
             }
-
-
-            /*
-             * NUR DIE BEIDEN ADMINS
-             * DÜRFEN IM ALLGEMEIN-CHAT
-             * SCHREIBEN.
-             */
 
             if (
               !isAdmin(username)
@@ -1221,17 +1461,14 @@ wss.on(
               return;
             }
 
-
             const text =
               String(
                 data.text || ""
               ).trim();
 
-
             if (!text) {
               return;
             }
-
 
             const result =
               await pool.query(
@@ -1240,9 +1477,15 @@ wss.on(
                 (
                   sender,
                   text,
-                  is_group
+                  is_group,
+                  message_type
                 )
-                VALUES ($1,$2,TRUE)
+                VALUES (
+                  $1,
+                  $2,
+                  TRUE,
+                  'text'
+                )
 
                 RETURNING
                   sender,
@@ -1256,7 +1499,6 @@ wss.on(
                   text
                 ]
               );
-
 
             const message = {
 
@@ -1275,10 +1517,9 @@ wss.on(
                 ),
 
               isAdmin:
-                isAdmin(username)
+                true
 
             };
-
 
             await broadcastGroup({
 
@@ -1289,14 +1530,12 @@ wss.on(
 
             });
 
-
             return;
           }
 
-
           /*
            * =========================
-           * PRIVATE NACHRICHT
+           * PRIVATE TEXTNACHRICHT
            * =========================
            */
 
@@ -1308,7 +1547,6 @@ wss.on(
             const from =
               socket.username;
 
-
             const to =
               String(
                 data.to || ""
@@ -1316,21 +1554,20 @@ wss.on(
                 .trim()
                 .toLowerCase();
 
-
             const text =
               String(
                 data.text || ""
               ).trim();
-
 
             if (
               !from ||
               !to ||
               !text
             ) {
-              return;
-            }
 
+              return;
+
+            }
 
             const target =
               await pool.query(
@@ -1341,7 +1578,6 @@ wss.on(
                 `,
                 [to]
               );
-
 
             if (!target.rowCount) {
 
@@ -1354,7 +1590,6 @@ wss.on(
               return;
             }
 
-
             const result =
               await pool.query(
                 `
@@ -1363,10 +1598,15 @@ wss.on(
                   sender,
                   receiver,
                   text,
-                  is_group
+                  is_group,
+                  message_type
                 )
                 VALUES (
-                  $1,$2,$3,FALSE
+                  $1,
+                  $2,
+                  $3,
+                  FALSE,
+                  'text'
                 )
 
                 RETURNING
@@ -1381,7 +1621,6 @@ wss.on(
                 ]
               );
 
-
             const message = {
 
               type:
@@ -1392,6 +1631,12 @@ wss.on(
               to,
 
               text,
+
+              messageType:
+                "text",
+
+              image:
+                null,
 
               time:
                 Number(
@@ -1404,12 +1649,10 @@ wss.on(
 
             };
 
-
             send(
               socket,
               message
             );
-
 
             for (
               const client of
@@ -1428,9 +1671,241 @@ wss.on(
                 );
 
               }
-
             }
 
+            return;
+          }
+
+          /*
+           * =========================
+           * BILD SENDEN
+           * =========================
+           */
+
+          if (
+            data.type ===
+            "image"
+          ) {
+
+            const from =
+              socket.username;
+
+            const to =
+              String(
+                data.to || ""
+              )
+                .trim()
+                .toLowerCase();
+
+            const image =
+              String(
+                data.image || ""
+              );
+
+            const mimeType =
+              String(
+                data.mimeType ||
+                "image/jpeg"
+              );
+
+            if (
+              !from ||
+              !to ||
+              !image
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Bild konnte nicht gesendet werden."
+              });
+
+              return;
+            }
+
+            /*
+             * Nur Bilder erlauben.
+             */
+
+            const allowedTypes = [
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "image/gif"
+            ];
+
+            if (
+              !allowedTypes.includes(
+                mimeType
+              )
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Dieses Bildformat wird nicht unterstützt."
+              });
+
+              return;
+            }
+
+            /*
+             * Base64-Prüfung.
+             *
+             * Ein Base64-String ist ungefähr
+             * 4/3 so groß wie die Originaldatei.
+             */
+
+            const base64Part =
+              image.includes(",")
+                ? image.split(",")[1]
+                : image;
+
+            const estimatedBytes =
+              Math.floor(
+                base64Part.length *
+                0.75
+              );
+
+            if (
+              estimatedBytes >
+              MAX_IMAGE_SIZE
+            ) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Das Bild darf maximal 5 MB groß sein."
+              });
+
+              return;
+            }
+
+            const target =
+              await pool.query(
+                `
+                SELECT 1
+                FROM users
+                WHERE username = $1
+                `,
+                [to]
+              );
+
+            if (!target.rowCount) {
+
+              send(socket, {
+                type: "error",
+                text:
+                  "Benutzer nicht gefunden."
+              });
+
+              return;
+            }
+
+            /*
+             * Einheitliches Data-URL-Format.
+             */
+
+            const imageData =
+              image.startsWith(
+                "data:"
+              )
+                ? image
+                : `data:${mimeType};base64,${base64Part}`;
+
+            const result =
+              await pool.query(
+                `
+                INSERT INTO messages
+                (
+                  sender,
+                  receiver,
+                  text,
+                  is_group,
+                  message_type,
+                  image_data
+                )
+                VALUES (
+                  $1,
+                  $2,
+                  NULL,
+                  FALSE,
+                  'image',
+                  $3
+                )
+
+                RETURNING
+                  EXTRACT(
+                    EPOCH FROM created_at
+                  ) * 1000 AS time
+                `,
+                [
+                  from,
+                  to,
+                  imageData
+                ]
+              );
+
+            const message = {
+
+              type:
+                "message",
+
+              from,
+
+              to,
+
+              text:
+                "",
+
+              messageType:
+                "image",
+
+              image:
+                imageData,
+
+              time:
+                Number(
+                  result.rows[0]
+                    .time
+                ),
+
+              senderIsAdmin:
+                isAdmin(from)
+
+            };
+
+            /*
+             * An Absender.
+             */
+
+            send(
+              socket,
+              message
+            );
+
+            /*
+             * An Empfänger.
+             */
+
+            for (
+              const client of
+                wss.clients
+            ) {
+
+              if (
+                client.readyState ===
+                  WebSocket.OPEN &&
+                client.username === to
+              ) {
+
+                send(
+                  client,
+                  message
+                );
+
+              }
+            }
 
             return;
           }
@@ -1441,7 +1916,6 @@ wss.on(
             "❌ Fehler:",
             error
           );
-
 
           send(socket, {
 
@@ -1458,7 +1932,6 @@ wss.on(
 
       }
     );
-
 
     socket.on(
       "close",
@@ -1480,6 +1953,11 @@ wss.on(
   }
 );
 
+/*
+ * =========================
+ * AUTOMATISCHE BEREINIGUNG
+ * =========================
+ */
 
 setInterval(
   () => {
@@ -1504,6 +1982,11 @@ setInterval(
   10 * 60 * 1000
 );
 
+/*
+ * =========================
+ * SERVER START
+ * =========================
+ */
 
 initDatabase()
   .then(() => {
@@ -1514,12 +1997,16 @@ initDatabase()
       () => {
 
         console.log(
-          `🚀 Server läuft auf Port ${PORT}`
+          `🚀 FortX Server läuft auf Port ${PORT}`
         );
 
         console.log(
           "👑 Admins:",
           GROUP_ADMINS.join(", ")
+        );
+
+        console.log(
+          "🖼️ Bilder bis 5 MB aktiviert"
         );
 
       }
