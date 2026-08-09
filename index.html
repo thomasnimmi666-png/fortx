@@ -1,2053 +1,2658 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#07070d">
-<title>NeonChat</title>
-
-<style>
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-:root {
-  --bg: #06060b;
-  --panel: rgba(15, 15, 25, .88);
-  --panel2: rgba(25, 25, 40, .92);
-  --border: rgba(255,255,255,.09);
-  --text: #f7f7ff;
-  --muted: #9292a8;
-  --accent: #8b5cf6;
-  --accent2: #ec4899;
-  --green: #22c55e;
-  --danger: #ef4444;
-  --shadow: 0 20px 70px rgba(0,0,0,.45);
-}
-
-body.light {
-  --bg: #f3f4f8;
-  --panel: rgba(255,255,255,.9);
-  --panel2: #ffffff;
-  --border: rgba(0,0,0,.09);
-  --text: #161622;
-  --muted: #68687a;
-  --shadow: 0 20px 60px rgba(0,0,0,.12);
-}
-
-html,
-body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  background:
-    radial-gradient(circle at 15% 15%, rgba(139,92,246,.18), transparent 30%),
-    radial-gradient(circle at 85% 85%, rgba(236,72,153,.12), transparent 30%),
-    var(--bg);
-  color: var(--text);
-  transition: background .3s, color .3s;
-}
-
-/* =========================
-   START SCREEN
-========================= */
-
-.screen {
-  width: 100%;
-  height: 100%;
-}
-
-.hidden {
-  display: none !important;
-}
-
-.auth-screen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.auth-box {
-  width: min(430px, 100%);
-  padding: 35px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 28px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(20px);
-}
-
-.logo {
-  text-align: center;
-  font-size: 42px;
-  font-weight: 900;
-  letter-spacing: 4px;
-  margin-bottom: 8px;
-  background: linear-gradient(
-    90deg,
-    #8b5cf6,
-    #ec4899,
-    #06b6d4,
-    #8b5cf6
-  );
-  background-size: 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: logoMove 5s linear infinite;
-}
-
-@keyframes logoMove {
-  0% { background-position: 0%; }
-  100% { background-position: 300%; }
-}
-
-.subtitle {
-  text-align: center;
-  color: var(--muted);
-  margin-bottom: 28px;
-}
-
-.input {
-  width: 100%;
-  padding: 15px 16px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,.16);
-  color: var(--text);
-  outline: none;
-  margin-bottom: 12px;
-  font-size: 15px;
-}
-
-body.light .input {
-  background: #f4f4f8;
-}
-
-.input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(139,92,246,.12);
-}
-
-.btn {
-  width: 100%;
-  border: 0;
-  border-radius: 14px;
-  padding: 14px 18px;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 700;
-  color: white;
-  background: linear-gradient(
-    135deg,
-    var(--accent),
-    var(--accent2)
-  );
-  box-shadow: 0 8px 30px rgba(139,92,246,.22);
-  transition: transform .15s, opacity .15s;
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-}
-
-.btn:active {
-  transform: scale(.98);
-}
-
-.btn.secondary {
-  color: var(--text);
-  background: var(--panel2);
-  box-shadow: none;
-  border: 1px solid var(--border);
-}
-
-.link-btn {
-  display: block;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: #a78bfa;
-  cursor: pointer;
-  padding: 12px;
-  font-weight: 700;
-}
-
-.auth-message {
-  min-height: 22px;
-  margin-top: 12px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.auth-message.error {
-  color: #fb7185;
-}
-
-.auth-message.success {
-  color: #4ade80;
-}
-
-/* =========================
-   APP
-========================= */
-
-.app {
-  display: flex;
-  width: 100%;
-  height: 100%;
-}
-
-.sidebar {
-  width: 280px;
-  flex-shrink: 0;
-  background: var(--panel);
-  border-right: 1px solid var(--border);
-  backdrop-filter: blur(20px);
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar-top {
-  padding: 22px;
-  border-bottom: 1px solid var(--border);
-}
-
-.small-logo {
-  font-size: 22px;
-  font-weight: 900;
-  background: linear-gradient(
-    90deg,
-    #8b5cf6,
-    #ec4899
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.current-user {
-  margin-top: 18px;
-  padding: 12px;
-  border-radius: 15px;
-  background: rgba(139,92,246,.09);
-  border: 1px solid rgba(139,92,246,.15);
-}
-
-.user-label {
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  margin-bottom: 5px;
-}
-
-.user-name {
-  font-weight: 800;
-}
-
-.sidebar-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 15px;
-}
-
-.section-title {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin: 12px 8px;
-}
-
-.chat-item {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 12px;
-  border-radius: 13px;
-  cursor: pointer;
-  margin-bottom: 5px;
-  transition: background .2s;
-}
-
-.chat-item:hover,
-.chat-item.active {
-  background: rgba(139,92,246,.13);
-}
-
-.avatar {
-  width: 39px;
-  height: 39px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-weight: 900;
-  background: linear-gradient(
-    135deg,
-    #8b5cf6,
-    #ec4899
-  );
-  color: white;
-}
-
-.chat-item-text {
-  min-width: 0;
-}
-
-.chat-item-name {
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chat-item-sub {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.sidebar-bottom {
-  padding: 15px;
-  border-top: 1px solid var(--border);
-}
-
-.bottom-btn {
-  width: 100%;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  padding: 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  margin-top: 7px;
-}
-
-.bottom-btn:hover {
-  background: rgba(255,255,255,.05);
-}
-
-/* =========================
-   MAIN CHAT
-========================= */
-
-.main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-header {
-  height: 72px;
-  flex-shrink: 0;
-  padding: 0 25px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
-  backdrop-filter: blur(20px);
-}
-
-.chat-title {
-  font-size: 19px;
-  font-weight: 900;
-}
-
-.chat-status {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 3px;
-}
-
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 25px;
-}
-
-.empty-chat {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  color: var(--muted);
-}
-
-.message {
-  display: flex;
-  margin-bottom: 16px;
-  gap: 10px;
-}
-
-.message.mine {
-  flex-direction: row-reverse;
-}
-
-.message-bubble {
-  max-width: min(650px, 75%);
-  padding: 12px 15px;
-  border-radius: 17px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-}
-
-.message.mine .message-bubble {
-  background: linear-gradient(
-    135deg,
-    rgba(139,92,246,.35),
-    rgba(236,72,153,.25)
-  );
-}
-
-.message-user {
-  font-size: 12px;
-  font-weight: 800;
-  margin-bottom: 5px;
-}
-
-.message-text {
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.45;
-}
-
-.message-time {
-  color: var(--muted);
-  font-size: 10px;
-  margin-top: 6px;
-}
-
-.composer {
-  padding: 15px 20px 20px;
-  border-top: 1px solid var(--border);
-  background: var(--panel);
-}
-
-.composer-row {
-  display: flex;
-  gap: 10px;
-}
-
-.message-input {
-  flex: 1;
-  min-width: 0;
-  padding: 14px 16px;
-  border-radius: 15px;
-  border: 1px solid var(--border);
-  background: var(--panel2);
-  color: var(--text);
-  outline: none;
-}
-
-.send-btn {
-  width: 55px;
-  border: 0;
-  border-radius: 15px;
-  cursor: pointer;
-  color: white;
-  font-size: 20px;
-  background: linear-gradient(
-    135deg,
-    var(--accent),
-    var(--accent2)
-  );
-}
-
-/* =========================
-   ADMIN / NEON
-========================= */
-
-.admin-name {
-  font-weight: 900;
-  background: linear-gradient(
-    90deg,
-    #fff,
-    #a78bfa,
-    #f472b6,
-    #67e8f9,
-    #fff
-  );
-  background-size: 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: neonName 3s linear infinite;
-  text-shadow:
-    0 0 8px rgba(167,139,250,.5);
-}
-
-@keyframes neonName {
-  0% {
-    background-position: 0%;
-  }
-  100% {
-    background-position: 300%;
-  }
-}
-
-.admin-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 5px;
-  font-size: 11px;
-  color: #fbbf24;
-}
-
-.admin-panel {
-  margin: 12px 0;
-  padding: 15px;
-  border-radius: 16px;
-  border: 1px solid rgba(245,158,11,.2);
-  background: rgba(245,158,11,.06);
-}
-
-.admin-title {
-  color: #fbbf24;
-  font-size: 13px;
-  font-weight: 900;
-  margin-bottom: 10px;
-}
-
-.reset-request {
-  padding: 10px;
-  border-radius: 12px;
-  background: var(--panel2);
-  margin-bottom: 8px;
-  border: 1px solid var(--border);
-}
-
-.reset-request-name {
-  font-weight: 800;
-  margin-bottom: 7px;
-}
-
-.reset-btn {
-  width: 100%;
-  padding: 9px;
-  border: 0;
-  border-radius: 9px;
-  cursor: pointer;
-  background: #f59e0b;
-  color: #111;
-  font-weight: 800;
-}
-
-/* =========================
-   SETTINGS
-========================= */
-
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 100;
-  backdrop-filter: blur(8px);
-}
-
-.modal-box {
-  width: min(470px, 100%);
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 25px;
-  border-radius: 23px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.modal-title {
-  font-size: 21px;
-  font-weight: 900;
-}
-
-.close {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 25px;
-}
-
-.setting {
-  padding: 15px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.setting-title {
-  font-weight: 800;
-  margin-bottom: 5px;
-}
-
-.setting-desc {
-  color: var(--muted);
-  font-size: 13px;
-  margin-bottom: 12px;
-}
-
-.theme-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.theme-button {
-  flex: 1;
-  padding: 11px;
-  border: 1px solid var(--border);
-  background: var(--panel2);
-  color: var(--text);
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.theme-button.active {
-  border-color: var(--accent);
-  background: rgba(139,92,246,.15);
-}
-
-/* =========================
-   MOBILE
-========================= */
-
-.mobile-menu {
-  display: none;
-}
-
-@media (max-width: 760px) {
-
-  .sidebar {
-    width: 76px;
-  }
-
-  .sidebar-top {
-    padding: 14px 8px;
-  }
-
-  .small-logo {
-    text-align: center;
-    font-size: 15px;
-  }
-
-  .current-user {
-    padding: 8px 3px;
-    text-align: center;
-  }
-
-  .user-label,
-  .user-name-text {
-    display: none;
-  }
-
-  .sidebar-content {
-    padding: 8px 5px;
-  }
-
-  .section-title {
-    display: none;
-  }
-
-  .chat-item {
-    justify-content: center;
-    padding: 8px 3px;
-  }
-
-  .chat-item-text {
-    display: none;
-  }
-
-  .sidebar-bottom {
-    padding: 8px 5px;
-  }
-
-  .bottom-btn {
-    font-size: 0;
-  }
-
-  .bottom-btn::first-letter {
-    font-size: 18px;
-  }
-
-  .chat-header {
-    padding: 0 15px;
-  }
-
-  .messages {
-    padding: 15px;
-  }
-
-  .message-bubble {
-    max-width: 85%;
-  }
-
-  .auth-box {
-    padding: 25px 20px;
-  }
-
-  .logo {
-    font-size: 34px;
-  }
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>FortX</title>
+
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #0b0b0b;
+      --panel2: #111;
+      --border: #252525;
+      --text: #fff;
+      --muted: #8c8c8c;
+      --accent: #fff;
+      --bubble: #161616;
+      --danger: #ff4545;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* =========================
+       LOGIN
+    ========================= */
+
+    #authScreen {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      background:
+        radial-gradient(circle at top, #151515 0%, #000 45%);
+    }
+
+    .auth-box {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(10,10,10,.96);
+      border: 1px solid #292929;
+      border-radius: 24px;
+      padding: 32px 25px;
+      box-shadow: 0 25px 80px rgba(0,0,0,.8);
+    }
+
+    .logo {
+      text-align: center;
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: -3px;
+      margin-bottom: 6px;
+      color: white;
+      text-shadow:
+        0 0 8px rgba(255,255,255,.45),
+        0 0 30px rgba(255,255,255,.15);
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    .tabs {
+      display: flex;
+      background: #080808;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 4px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      flex: 1;
+      border: 0;
+      background: transparent;
+      color: #777;
+      padding: 11px;
+      border-radius: 9px;
+    }
+
+    .tab.active {
+      background: #fff;
+      color: #000;
+      font-weight: 700;
+    }
+
+    .field {
+      margin-bottom: 13px;
+    }
+
+    .field label {
+      display: block;
+      color: #aaa;
+      font-size: 13px;
+      margin: 0 0 7px 3px;
+    }
+
+    .field input {
+      width: 100%;
+      background: #080808;
+      border: 1px solid #292929;
+      color: white;
+      outline: none;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .field input:focus {
+      border-color: #777;
+    }
+
+    .main-btn {
+      width: 100%;
+      border: 0;
+      background: white;
+      color: black;
+      font-weight: 800;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 4px;
+    }
+
+    .secondary-btn {
+      width: 100%;
+      border: 1px solid #303030;
+      background: #0b0b0b;
+      color: white;
+      border-radius: 12px;
+      padding: 13px;
+      margin-top: 10px;
+    }
+
+    .link-btn {
+      display: block;
+      border: 0;
+      background: transparent;
+      color: #aaa;
+      margin: 16px auto 0;
+      font-size: 13px;
+    }
+
+    .link-btn:hover {
+      color: white;
+    }
+
+    #authMessage {
+      min-height: 20px;
+      text-align: center;
+      color: #aaa;
+      font-size: 13px;
+      margin-top: 15px;
+    }
+
+    /* =========================
+       APP
+    ========================= */
+
+    #app {
+      height: 100vh;
+      display: flex;
+      background: #000;
+    }
+
+    .sidebar {
+      width: 280px;
+      background: #050505;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      padding: 22px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-title {
+      font-size: 27px;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+
+    .brand-user {
+      color: #777;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .nav {
+      padding: 12px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .nav-title {
+      color: #555;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 10px;
+    }
+
+    .chat-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: white;
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      text-align: left;
+      margin-bottom: 3px;
+    }
+
+    .chat-item:hover,
+    .chat-item.active {
+      background: #151515;
+    }
+
+    .avatar {
+      width: 39px;
+      height: 39px;
+      border-radius: 50%;
+      background: #181818;
+      border: 1px solid #303030;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .chat-info {
+      min-width: 0;
+    }
+
+    .chat-name {
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-sub {
+      color: #666;
+      font-size: 11px;
+      margin-top: 3px;
+    }
+
+    .sidebar-bottom {
+      padding: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .side-btn {
+      width: 100%;
+      background: transparent;
+      color: #aaa;
+      border: 0;
+      text-align: left;
+      padding: 11px;
+      border-radius: 10px;
+    }
+
+    .side-btn:hover {
+      background: #111;
+      color: white;
+    }
+
+    /* =========================
+       CHAT
+    ========================= */
+
+    .chat {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-header {
+      height: 72px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      background: #030303;
+    }
+
+    .mobile-menu {
+      display: none;
+      background: transparent;
+      color: white;
+      border: 0;
+      font-size: 23px;
+    }
+
+    .header-title {
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .header-status {
+      color: #666;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      scroll-behavior: smooth;
+    }
+
+    .empty {
+      margin: auto;
+      color: #555;
+      text-align: center;
+    }
+
+    .message {
+      max-width: 75%;
+      display: flex;
+      flex-direction: column;
+      align-self: flex-start;
+    }
+
+    .message.mine {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .message-user {
+      font-size: 11px;
+      color: #777;
+      margin: 0 8px 4px;
+    }
+
+    .bubble {
+      background: var(--bubble);
+      border: 1px solid #242424;
+      border-radius: 16px;
+      padding: 10px 13px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .mine .bubble {
+      background: white;
+      color: black;
+      border-color: white;
+    }
+
+    .message-time {
+      color: #555;
+      font-size: 10px;
+      margin: 4px 8px 0;
+    }
+
+    .composer {
+      border-top: 1px solid var(--border);
+      padding: 13px;
+      background: #030303;
+      display: flex;
+      gap: 9px;
+    }
+
+    .composer input {
+      flex: 1;
+      min-width: 0;
+      background: #0c0c0c;
+      border: 1px solid #292929;
+      color: white;
+      outline: none;
+      border-radius: 13px;
+      padding: 13px;
+    }
+
+    .send-btn {
+      width: 48px;
+      border: 0;
+      border-radius: 13px;
+      background: white;
+      color: black;
+      font-weight: 900;
+    }
+
+    .composer.readonly {
+      opacity: .55;
+    }
+
+    /* =========================
+       ADMIN NAME
+    ========================= */
+
+    .admin-name {
+      font-weight: 900;
+      display: inline-block;
+      background: linear-gradient(
+        90deg,
+        #fff,
+        #777,
+        #fff,
+        #aaa,
+        #fff
+      );
+      background-size: 300% auto;
+      color: transparent;
+      background-clip: text;
+      -webkit-background-clip: text;
+      animation: adminGlow 3s linear infinite;
+    }
+
+    @keyframes adminGlow {
+      0% {
+        background-position: 0% center;
+      }
+      100% {
+        background-position: 300% center;
+      }
+    }
+
+    /* =========================
+       MODALS
+    ========================= */
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.78);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 430px;
+      background: #0b0b0b;
+      border: 1px solid #292929;
+      border-radius: 20px;
+      padding: 23px;
+      box-shadow: 0 25px 80px #000;
+    }
+
+    .modal-title {
+      font-size: 21px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    .modal-close {
+      float: right;
+      background: transparent;
+      color: #777;
+      border: 0;
+      font-size: 20px;
+    }
+
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid #1d1d1d;
+    }
+
+    .setting-name {
+      font-weight: 700;
+    }
+
+    .setting-desc {
+      color: #666;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .switch {
+      width: 50px;
+      height: 28px;
+      border-radius: 30px;
+      border: 1px solid #333;
+      background: #181818;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      top: 3px;
+      left: 4px;
+      transition: .2s;
+    }
+
+    body.light {
+      --bg: #f5f5f5;
+      --panel: #fff;
+      --panel2: #eee;
+      --border: #ddd;
+      --text: #111;
+      --muted: #666;
+      --accent: #111;
+      --bubble: #eee;
+    }
+
+    body.light #app,
+    body.light .chat,
+    body.light .sidebar,
+    body.light .chat-header,
+    body.light .composer,
+    body.light .sidebar-bottom,
+    body.light .brand {
+      background: #fff;
+      color: #111;
+    }
+
+    body.light .chat-item:hover,
+    body.light .chat-item.active {
+      background: #eee;
+      color: #111;
+    }
+
+    body.light .composer input,
+    body.light .field input {
+      background: #f3f3f3;
+      color: #111;
+      border-color: #ccc;
+    }
+
+    body.light .bubble {
+      background: #eee;
+      color: #111;
+      border-color: #ddd;
+    }
+
+    body.light .mine .bubble {
+      background: #111;
+      color: white;
+    }
+
+    body.light .switch {
+      background: white;
+    }
+
+    body.light .switch::after {
+      left: 25px;
+      background: #111;
+    }
+
+    /* =========================
+       MOBILE
+    ========================= */
+
+    @media (max-width: 760px) {
+      .sidebar {
+        position: fixed;
+        z-index: 50;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        transform: translateX(-100%);
+        transition: transform .2s ease;
+        width: 280px;
+        box-shadow: 20px 0 50px rgba(0,0,0,.5);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .mobile-menu {
+        display: block;
+      }
+
+      .chat-header {
+        padding: 0 12px;
+      }
+
+      #messages {
+        padding: 14px 11px;
+      }
+
+      .message {
+        max-width: 88%;
+      }
+
+      .auth-box {
+        padding: 26px 19px;
+      }
+
+      .logo {
+        font-size: 42px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-<!-- =========================
-     LOGIN
-========================= -->
+  <!-- =========================
+       AUTH
+  ========================= -->
 
-<div id="loginScreen" class="screen auth-screen">
+  <section id="authScreen">
 
-  <div class="auth-box">
+    <div class="auth-box">
 
-    <div class="logo">NEONCHAT</div>
+      <div class="logo">FortX</div>
+      <div class="subtitle">Privater Chat</div>
 
-    <div class="subtitle">
-      Dein privater Chat
-    </div>
+      <div class="tabs">
+        <button
+          id="loginTab"
+          class="tab active"
+          onclick="showLogin()">
+          Anmelden
+        </button>
 
-    <input
-      id="loginUsername"
-      class="input"
-      placeholder="Benutzername"
-      autocomplete="username"
-    >
-
-    <input
-      id="loginPassword"
-      class="input"
-      type="password"
-      placeholder="Passwort"
-      autocomplete="current-password"
-    >
-
-    <button
-      id="loginBtn"
-      class="btn"
-    >
-      Einloggen
-    </button>
-
-    <button
-      id="showRegisterBtn"
-      class="link-btn"
-    >
-      Noch kein Konto? Registrieren
-    </button>
-
-    <button
-      id="showForgotBtn"
-      class="link-btn"
-    >
-      Passwort vergessen?
-    </button>
-
-    <div
-      id="loginMessage"
-      class="auth-message"
-    ></div>
-
-  </div>
-
-</div>
-
-
-<!-- =========================
-     REGISTER
-========================= -->
-
-<div
-  id="registerScreen"
-  class="screen auth-screen hidden"
->
-
-  <div class="auth-box">
-
-    <div class="logo">NEONCHAT</div>
-
-    <div class="subtitle">
-      Konto erstellen
-    </div>
-
-    <input
-      id="registerUsername"
-      class="input"
-      placeholder="Benutzername"
-      autocomplete="username"
-    >
-
-    <input
-      id="registerPassword"
-      class="input"
-      type="password"
-      placeholder="Passwort – mindestens 8 Zeichen"
-      autocomplete="new-password"
-    >
-
-    <input
-      id="registerPassword2"
-      class="input"
-      type="password"
-      placeholder="Passwort wiederholen"
-      autocomplete="new-password"
-    >
-
-    <input
-      id="accessCode"
-      class="input"
-      placeholder="Zugangscode"
-    >
-
-    <button
-      id="registerBtn"
-      class="btn"
-    >
-      Konto erstellen
-    </button>
-
-    <button
-      id="backLoginBtn"
-      class="link-btn"
-    >
-      Zurück zum Login
-    </button>
-
-    <div
-      id="registerMessage"
-      class="auth-message"
-    ></div>
-
-  </div>
-
-</div>
-
-
-<!-- =========================
-     FORGOT PASSWORD
-========================= -->
-
-<div
-  id="forgotScreen"
-  class="screen auth-screen hidden"
->
-
-  <div class="auth-box">
-
-    <div class="logo">NEONCHAT</div>
-
-    <div class="subtitle">
-      Passwort zurücksetzen
-    </div>
-
-    <p
-      style="
-        color:var(--muted);
-        font-size:14px;
-        line-height:1.5;
-        margin-bottom:18px;
-        text-align:center;
-      "
-    >
-      Gib deinen Benutzernamen ein.
-      Ein Admin kann anschließend einen
-      Reset-Link erstellen.
-    </p>
-
-    <input
-      id="forgotUsername"
-      class="input"
-      placeholder="Benutzername"
-    >
-
-    <button
-      id="forgotBtn"
-      class="btn"
-    >
-      Anfrage senden
-    </button>
-
-    <button
-      id="forgotBackBtn"
-      class="link-btn"
-    >
-      Zurück zum Login
-    </button>
-
-    <div
-      id="forgotMessage"
-      class="auth-message"
-    ></div>
-
-  </div>
-
-</div>
-
-
-<!-- =========================
-     RESET PASSWORD
-========================= -->
-
-<div
-  id="resetScreen"
-  class="screen auth-screen hidden"
->
-
-  <div class="auth-box">
-
-    <div class="logo">NEONCHAT</div>
-
-    <div class="subtitle">
-      Neues Passwort
-    </div>
-
-    <input
-      id="resetPassword"
-      class="input"
-      type="password"
-      placeholder="Neues Passwort"
-    >
-
-    <input
-      id="resetPassword2"
-      class="input"
-      type="password"
-      placeholder="Passwort wiederholen"
-    >
-
-    <button
-      id="resetBtn"
-      class="btn"
-    >
-      Passwort ändern
-    </button>
-
-    <div
-      id="resetMessage"
-      class="auth-message"
-    ></div>
-
-  </div>
-
-</div>
-
-
-<!-- =========================
-     APP
-========================= -->
-
-<div
-  id="app"
-  class="app hidden"
->
-
-  <aside class="sidebar">
-
-    <div class="sidebar-top">
-
-      <div class="small-logo">
-        NEONCHAT
+        <button
+          id="registerTab"
+          class="tab"
+          onclick="showRegister()">
+          Registrieren
+        </button>
       </div>
 
-      <div class="current-user">
+      <div id="loginForm">
 
-        <div class="user-label">
-          Eingeloggt als
+        <div class="field">
+          <label>Benutzername</label>
+          <input
+            id="loginUsername"
+            autocomplete="username"
+            placeholder="Benutzername">
         </div>
 
-        <div
-          id="currentUser"
-          class="user-name"
-        ></div>
-
-      </div>
-
-    </div>
-
-
-    <div class="sidebar-content">
-
-      <div class="section-title">
-        Chats
-      </div>
-
-      <div
-        id="groupChatButton"
-        class="chat-item active"
-      >
-
-        <div class="avatar">
-          🌐
+        <div class="field">
+          <label>Passwort</label>
+          <input
+            id="loginPassword"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Passwort">
         </div>
 
-        <div class="chat-item-text">
+        <button
+          class="main-btn"
+          onclick="login()">
+          Anmelden
+        </button>
 
-          <div class="chat-item-name">
+        <button
+          class="link-btn"
+          onclick="showForgot()">
+          Passwort vergessen?
+        </button>
+
+      </div>
+
+      <div id="registerForm" class="hidden">
+
+        <div class="field">
+          <label>Benutzername</label>
+          <input
+            id="registerUsername"
+            autocomplete="username"
+            placeholder="z. B. max123">
+        </div>
+
+        <div class="field">
+          <label>Passwort</label>
+          <input
+            id="registerPassword"
+            type="password"
+            autocomplete="new-password"
+            placeholder="Mindestens 8 Zeichen">
+        </div>
+
+        <div class="field">
+          <label>Zugangscode</label>
+          <input
+            id="registerAccessCode"
+            type="password"
+            placeholder="Zugangscode">
+        </div>
+
+        <button
+          class="main-btn"
+          onclick="register()">
+          Konto erstellen
+        </button>
+
+      </div>
+
+      <div id="forgotForm" class="hidden">
+
+        <div class="field">
+          <label>Benutzername</label>
+          <input
+            id="forgotUsername"
+            placeholder="Dein Benutzername">
+        </div>
+
+        <button
+          class="main-btn"
+          onclick="forgotPassword()">
+          Passwort zurücksetzen
+        </button>
+
+        <button
+          class="link-btn"
+          onclick="showLogin()">
+          Zurück zur Anmeldung
+        </button>
+
+      </div>
+
+      <div id="authMessage"></div>
+
+    </div>
+  </section>
+
+
+  <!-- =========================
+       APP
+  ========================= -->
+
+  <main id="app" class="hidden">
+
+    <aside id="sidebar" class="sidebar">
+
+      <div class="brand">
+        <div class="brand-title">FortX</div>
+        <div id="brandUser" class="brand-user"></div>
+      </div>
+
+      <div class="nav">
+
+        <div class="nav-title">
+          Chats
+        </div>
+
+        <button
+          id="generalChatButton"
+          class="chat-item active"
+          onclick="openGeneralChat()">
+
+          <div class="avatar">#</div>
+
+          <div class="chat-info">
+            <div class="chat-name">
+              Allgemein
+            </div>
+            <div class="chat-sub">
+              Gruppenchat
+            </div>
+          </div>
+
+        </button>
+
+        <div class="nav-title">
+          Freunde
+        </div>
+
+        <div id="friendsList"></div>
+
+        <button
+          class="side-btn"
+          onclick="openAddFriend()">
+          ＋ Freund hinzufügen
+        </button>
+
+      </div>
+
+      <div class="sidebar-bottom">
+
+        <button
+          class="side-btn"
+          onclick="openSettings()">
+          ⚙ Einstellungen
+        </button>
+
+        <button
+          class="side-btn"
+          onclick="logout()">
+          ↪ Abmelden
+        </button>
+
+      </div>
+
+    </aside>
+
+
+    <section class="chat">
+
+      <header class="chat-header">
+
+        <button
+          class="mobile-menu"
+          onclick="toggleSidebar()">
+          ☰
+        </button>
+
+        <div>
+          <div id="headerTitle" class="header-title">
             Allgemein
           </div>
 
-          <div class="chat-item-sub">
+          <div id="headerStatus" class="header-status">
             Gruppenchat
           </div>
+        </div>
 
+      </header>
+
+
+      <div id="messages">
+
+        <div class="empty" id="emptyMessage">
+          Noch keine Nachrichten.
         </div>
 
       </div>
 
 
-      <div class="section-title">
-        Freunde
-      </div>
-
-      <div id="friendsList"></div>
-
-      <button
-        id="addFriendBtn"
-        class="bottom-btn"
-      >
-        ➕ Freund hinzufügen
-      </button>
-
-    </div>
-
-
-    <div class="sidebar-bottom">
-
-      <button
-        id="settingsBtn"
-        class="bottom-btn"
-      >
-        ⚙️ Einstellungen
-      </button>
-
-      <button
-        id="logoutBtn"
-        class="bottom-btn"
-      >
-        🚪 Abmelden
-      </button>
-
-    </div>
-
-  </aside>
-
-
-  <main class="main">
-
-    <header class="chat-header">
-
-      <div>
-
-        <div
-          id="chatTitle"
-          class="chat-title"
-        >
-          🌐 Allgemein
-        </div>
-
-        <div
-          id="chatStatus"
-          class="chat-status"
-        >
-          Willkommen bei NeonChat
-        </div>
-
-      </div>
-
-      <div
-        id="connectionStatus"
-        class="chat-status"
-      >
-        🟡 Verbinde...
-      </div>
-
-    </header>
-
-
-    <div
-      id="messages"
-      class="messages"
-    >
-
-      <div class="empty-chat">
-        <div>
-          <div style="font-size:42px;margin-bottom:10px;">
-            💬
-          </div>
-          Wähle einen Chat aus.
-        </div>
-      </div>
-
-    </div>
-
-
-    <div
-      id="composer"
-      class="composer"
-    >
-
-      <div class="composer-row">
+      <div id="composer" class="composer">
 
         <input
           id="messageInput"
-          class="message-input"
           placeholder="Nachricht schreiben..."
           autocomplete="off"
-        >
+          onkeydown="handleMessageKey(event)">
 
         <button
-          id="sendBtn"
           class="send-btn"
-        >
+          onclick="sendMessage()">
           ➤
         </button>
 
       </div>
 
-    </div>
+    </section>
 
   </main>
 
-</div>
 
+  <!-- =========================
+       ADD FRIEND MODAL
+  ========================= -->
 
-<!-- =========================
-     SETTINGS MODAL
-========================= -->
+  <div
+    id="friendModal"
+    class="modal hidden">
 
-<div
-  id="settingsModal"
-  class="modal hidden"
->
-
-  <div class="modal-box">
-
-    <div class="modal-header">
-
-      <div class="modal-title">
-        ⚙️ Einstellungen
-      </div>
+    <div class="modal-box">
 
       <button
-        id="closeSettings"
-        class="close"
-      >
+        class="modal-close"
+        onclick="closeModal('friendModal')">
         ×
       </button>
 
-    </div>
-
-
-    <div class="setting">
-
-      <div class="setting-title">
-        Erscheinungsbild
+      <div class="modal-title">
+        Freund hinzufügen
       </div>
 
-      <div class="setting-desc">
-        Wähle zwischen dunklem und hellem Design.
+      <div class="field">
+        <label>Benutzername</label>
+
+        <input
+          id="friendUsername"
+          placeholder="Benutzername">
       </div>
 
-      <div class="theme-buttons">
+      <button
+        class="main-btn"
+        onclick="addFriend()">
+        Hinzufügen
+      </button>
 
-        <button
-          id="darkTheme"
-          class="theme-button"
-        >
-          🌙 Dunkel
-        </button>
-
-        <button
-          id="lightTheme"
-          class="theme-button"
-        >
-          ☀️ Hell
-        </button>
-
+      <div id="friendMessage"
+           class="authMessage">
       </div>
 
     </div>
 
+  </div>
 
-    <div class="setting">
 
-      <div class="setting-title">
-        Dein Konto
+  <!-- =========================
+       SETTINGS
+  ========================= -->
+
+  <div
+    id="settingsModal"
+    class="modal hidden">
+
+    <div class="modal-box">
+
+      <button
+        class="modal-close"
+        onclick="closeModal('settingsModal')">
+        ×
+      </button>
+
+      <div class="modal-title">
+        Einstellungen
       </div>
 
-      <div
-        id="settingsUsername"
-        style="
-          color:var(--muted);
-          margin-top:6px;
-        "
-      ></div>
+      <div class="setting-row">
 
-    </div>
+        <div>
+          <div class="setting-name">
+            Dunkel / Hell
+          </div>
 
-
-    <div
-      id="adminSettings"
-      class="setting hidden"
-    >
-
-      <div class="setting-title">
-        👑 Admin
-      </div>
-
-      <div class="setting-desc">
-        Du bist als Admin eingetragen.
-        Du kannst Passwort-Reset-Anfragen
-        bearbeiten.
-      </div>
-
-      <div
-        id="resetRequests"
-        class="admin-panel"
-      >
-
-        <div class="admin-title">
-          🔐 Reset-Anfragen
+          <div class="setting-desc">
+            Erscheinungsbild von FortX
+          </div>
         </div>
 
         <div
-          id="resetRequestsList"
-          style="
-            color:var(--muted);
-            font-size:13px;
-          "
-        >
-          Keine offenen Anfragen.
+          id="themeSwitch"
+          class="switch"
+          onclick="toggleTheme()">
+        </div>
+
+      </div>
+
+      <div class="setting-row">
+
+        <div>
+          <div class="setting-name">
+            Konto
+          </div>
+
+          <div class="setting-desc"
+               id="settingsUsername">
+          </div>
         </div>
 
       </div>
 
     </div>
 
-
-    <button
-      id="closeSettings2"
-      class="btn secondary"
-      style="margin-top:15px;"
-    >
-      Fertig
-    </button>
-
   </div>
 
-</div>
 
+  <!-- =========================
+       ADMIN RESET MODAL
+  ========================= -->
 
-<!-- =========================
-     ADD FRIEND MODAL
-========================= -->
+  <div
+    id="resetRequestModal"
+    class="modal hidden">
 
-<div
-  id="friendModal"
-  class="modal hidden"
->
-
-  <div class="modal-box">
-
-    <div class="modal-header">
-
-      <div class="modal-title">
-        👥 Freund hinzufügen
-      </div>
+    <div class="modal-box">
 
       <button
-        id="closeFriendModal"
-        class="close"
-      >
+        class="modal-close"
+        onclick="closeModal('resetRequestModal')">
         ×
       </button>
 
+      <div class="modal-title">
+        🔐 Passwort-Anfrage
+      </div>
+
+      <p id="resetRequestText"
+         style="color:#aaa;">
+      </p>
+
+      <button
+        class="main-btn"
+        onclick="createResetLink()">
+        Reset-Link erstellen
+      </button>
+
+      <div id="resetLinkBox"
+           class="hidden"
+           style="margin-top:15px;">
+
+        <input
+          id="resetLink"
+          readonly
+          style="
+            width:100%;
+            background:#050505;
+            color:white;
+            border:1px solid #333;
+            padding:12px;
+            border-radius:10px;
+          ">
+
+        <button
+          class="secondary-btn"
+          onclick="copyResetLink()">
+          Link kopieren
+        </button>
+
+      </div>
+
     </div>
-
-    <input
-      id="friendUsername"
-      class="input"
-      placeholder="Benutzername"
-    >
-
-    <button
-      id="confirmFriendBtn"
-      class="btn"
-    >
-      Freund hinzufügen
-    </button>
-
-    <div
-      id="friendMessage"
-      class="auth-message"
-    ></div>
 
   </div>
 
-</div>
+
+  <!-- =========================
+       PASSWORD RESET
+  ========================= -->
+
+  <div
+    id="passwordResetModal"
+    class="modal hidden">
+
+    <div class="modal-box">
+
+      <div class="modal-title">
+        Neues Passwort
+      </div>
+
+      <div class="field">
+        <label>Neues Passwort</label>
+
+        <input
+          id="newPassword"
+          type="password"
+          placeholder="Mindestens 8 Zeichen">
+      </div>
+
+      <button
+        class="main-btn"
+        onclick="resetPassword()">
+        Passwort ändern
+      </button>
+
+      <div id="resetMessage"
+           style="
+             color:#999;
+             text-align:center;
+             margin-top:12px;
+           ">
+      </div>
+
+    </div>
+
+  </div>
 
 
 <script>
-/* =========================
-   KONFIGURATION
-========================= */
+  /* =====================================================
+     FORTX CLIENT
+  ===================================================== */
 
-const ADMINS = [
-  "saftpresse040",
-  "thcliquide"
-];
+  const ADMINS = [
+    "saftpresse040",
+    "thcliquide"
+  ];
 
-let socket = null;
-let username = "";
-let isAdmin = false;
-let currentChat = "group";
-let friends = [];
-let resetRequests = [];
+  let socket = null;
+  let currentUser = null;
+  let currentChat = "general";
+  let resetToken = null;
+  let pendingResetUser = null;
 
+  let friends = [];
 
-/* =========================
-   ELEMENTE
-========================= */
-
-const $ = id =>
-  document.getElementById(id);
+  const $ = id =>
+    document.getElementById(id);
 
 
-/* =========================
-   ADMIN
-========================= */
+  /* =====================================================
+     WEBSOCKET
+  ===================================================== */
 
-function checkAdmin(name) {
+  function getSocketUrl() {
 
-  return ADMINS.includes(
-    String(name || "")
-      .trim()
-      .toLowerCase()
-  );
+    const protocol =
+      location.protocol === "https:"
+        ? "wss:"
+        : "ws:";
 
-}
-
-
-function displayName(name) {
-
-  if (checkAdmin(name)) {
-
-    return `
-      <span class="admin-name">
-        👑 ${escapeHtml(name)}
-      </span>
-      <span class="admin-badge">
-        ADMIN
-      </span>
-    `;
-
+    return (
+      protocol +
+      "//" +
+      location.host
+    );
   }
 
-  return escapeHtml(name);
 
-}
+  function connectSocket() {
 
-
-/* =========================
-   HTML SICHER MACHEN
-========================= */
-
-function escapeHtml(value) {
-
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-
-}
-
-
-/* =========================
-   SCREEN
-========================= */
-
-function showScreen(id) {
-
-  document
-    .querySelectorAll(".screen")
-    .forEach(screen =>
-      screen.classList.add("hidden")
-    );
-
-  $(id).classList.remove("hidden");
-
-}
-
-
-/* =========================
-   WEBSOCKET URL
-========================= */
-
-function getSocketUrl() {
-
-  const protocol =
-    location.protocol === "https:"
-      ? "wss:"
-      : "ws:";
-
-  return `${protocol}//${location.host}`;
-
-}
-
-
-/* =========================
-   VERBINDEN
-========================= */
-
-function connect() {
-
-  if (socket) {
-
-    try {
-      socket.close();
-    } catch {}
-
-  }
-
-  socket =
-    new WebSocket(
-      getSocketUrl()
-    );
-
-
-  socket.addEventListener(
-    "open",
-    () => {
-
-      $("connectionStatus").textContent =
-        "🟢 Online";
-
-      loadFriends();
-      loadGroupMessages();
-
+    if (
+      socket &&
+      (
+        socket.readyState ===
+          WebSocket.OPEN ||
+        socket.readyState ===
+          WebSocket.CONNECTING
+      )
+    ) {
+      return;
     }
-  );
 
+    socket =
+      new WebSocket(
+        getSocketUrl()
+      );
 
-  socket.addEventListener(
-    "close",
-    () => {
+    socket.onopen = () => {
 
-      $("connectionStatus").textContent =
-        "🔴 Offline";
+      console.log(
+        "✅ WebSocket verbunden"
+      );
 
-    }
-  );
+      if (currentUser) {
 
+        requestFriends();
 
-  socket.addEventListener(
-    "error",
-    () => {
+        setTimeout(
+          () => {
+            if (currentChat === "general") {
+              requestGroupMessages();
+            }
+          },
+          100
+        );
+      }
+    };
 
-      $("connectionStatus").textContent =
-        "🔴 Verbindungsfehler";
+    socket.onclose = () => {
 
-    }
-  );
+      console.log(
+        "🔌 Verbindung getrennt"
+      );
 
+      setTimeout(
+        connectSocket,
+        2000
+      );
+    };
 
-  socket.addEventListener(
-    "message",
-    event => {
+    socket.onerror = error => {
+
+      console.error(
+        "WebSocket-Fehler:",
+        error
+      );
+    };
+
+    socket.onmessage = event => {
 
       try {
 
         const data =
-          JSON.parse(event.data);
+          JSON.parse(
+            event.data
+          );
 
-        handleServerMessage(data);
+        handleServerMessage(
+          data
+        );
 
       } catch (error) {
 
-        console.error(error);
-
-      }
-
-    }
-  );
-
-}
-
-
-/* =========================
-   SENDEN
-========================= */
-
-function send(data) {
-
-  if (
-    !socket ||
-    socket.readyState !== WebSocket.OPEN
-  ) {
-
-    alert("Keine Verbindung zum Server.");
-
-    return false;
-  }
-
-  socket.send(
-    JSON.stringify(data)
-  );
-
-  return true;
-
-}
-
-
-/* =========================
-   SERVER NACHRICHTEN
-========================= */
-
-function handleServerMessage(data) {
-
-  console.log("SERVER:", data);
-
-
-  if (data.type === "error") {
-
-    showCurrentMessage(
-      data.text,
-      true
-    );
-
-    return;
-  }
-
-
-  if (
-    data.type === "loggedIn" ||
-    data.type === "registered"
-  ) {
-
-    username =
-      String(
-        data.username || ""
-      ).toLowerCase();
-
-    isAdmin =
-      Boolean(
-        data.isAdmin
-      ) || checkAdmin(username);
-
-
-    enterApp();
-
-    return;
-  }
-
-
-  if (
-    data.type ===
-    "forgotPasswordSent"
-  ) {
-
-    setAuthMessage(
-      "forgotMessage",
-      data.text,
-      "success"
-    );
-
-    return;
-  }
-
-
-  if (
-    data.type ===
-    "passwordResetSuccess"
-  ) {
-
-    setAuthMessage(
-      "resetMessage",
-      "Passwort erfolgreich geändert.",
-      "success"
-    );
-
-    setTimeout(
-      () => {
-
-        showScreen(
-          "loginScreen"
+        console.error(
+          "Ungültige Serverantwort:",
+          error
         );
-
-      },
-      1500
-    );
-
-    return;
+      }
+    };
   }
 
 
-  if (
-    data.type ===
-    "friends"
-  ) {
-
-    friends =
-      Array.isArray(data.friends)
-        ? data.friends
-        : [];
-
-    renderFriends();
-
-    return;
-  }
-
-
-  if (
-    data.type ===
-    "friendAdded"
-  ) {
-
-    setAuthMessage(
-      "friendMessage",
-      `${data.username} wurde hinzugefügt.`,
-      "success"
-    );
-
-    $("friendUsername").value = "";
-
-    loadFriends();
-
-    return;
-  }
-
-
-  if (
-    data.type ===
-    "groupMessages"
-  ) {
-
-    if (currentChat === "group") {
-
-      renderMessages(
-        data.messages || [],
-        true
-      );
-
-    }
-
-    return;
-  }
-
-
-  if (
-    data.type ===
-    "privateMessages"
-  ) {
+  function wsSend(data) {
 
     if (
-      currentChat === data.username
+      !socket ||
+      socket.readyState !==
+        WebSocket.OPEN
     ) {
 
-      renderMessages(
-        data.messages || [],
-        false
+      showAuthMessage(
+        "Keine Serververbindung."
       );
 
+      return false;
     }
 
-    return;
+    socket.send(
+      JSON.stringify(data)
+    );
+
+    return true;
   }
 
 
-  if (
-    data.type ===
-    "groupMessage"
-  ) {
+  /* =====================================================
+     SERVER EVENTS
+  ===================================================== */
 
-    if (currentChat === "group") {
+  function handleServerMessage(data) {
 
-      addMessageToScreen(
+    console.log(
+      "Server:",
+      data
+    );
+
+    if (
+      data.type === "error"
+    ) {
+
+      showAuthMessage(
+        data.text ||
+        "Fehler"
+      );
+
+      if ($("friendMessage")) {
+        $("friendMessage").textContent =
+          data.text || "Fehler";
+      }
+
+      return;
+    }
+
+
+    if (
+      data.type === "registered"
+    ) {
+
+      currentUser =
+        data.username;
+
+      showApp();
+
+      return;
+    }
+
+
+    if (
+      data.type === "loggedIn"
+    ) {
+
+      currentUser =
+        data.username;
+
+      showApp();
+
+      return;
+    }
+
+
+    if (
+      data.type ===
+      "forgotPasswordSent"
+    ) {
+
+      showAuthMessage(
+        data.text ||
+        "Die Anfrage wurde gesendet."
+      );
+
+      return;
+    }
+
+
+    if (
+      data.type ===
+      "passwordResetSuccess"
+    ) {
+
+      $("resetMessage").textContent =
+        "Passwort erfolgreich geändert.";
+
+      setTimeout(
+        () => {
+
+          closeModal(
+            "passwordResetModal"
+          );
+
+          location.href =
+            location.pathname;
+
+        },
+        1200
+      );
+
+      return;
+    }
+
+
+    if (
+      data.type ===
+      "friends"
+    ) {
+
+      friends =
+        Array.isArray(data.friends)
+          ? data.friends
+          : [];
+
+      renderFriends();
+
+      return;
+    }
+
+
+    if (
+      data.type ===
+      "friendAdded"
+    ) {
+
+      $("friendMessage").textContent =
+        "Freund hinzugefügt.";
+
+      requestFriends();
+
+      setTimeout(
+        () => {
+          closeModal(
+            "friendModal"
+          );
+        },
+        700
+      );
+
+      return;
+    }
+
+
+    /* =========================
+       GRUPPEN NACHRICHTEN
+    ========================= */
+
+    if (
+      data.type ===
+      "groupMessages"
+    ) {
+
+      if (
+        currentChat !==
+        "general"
+      ) {
+        return;
+      }
+
+      clearMessages();
+
+      const messages =
+        Array.isArray(
+          data.messages
+        )
+          ? data.messages
+          : [];
+
+      messages.forEach(
+        message => {
+
+          appendGroupMessage(
+            message,
+            false
+          );
+
+        }
+      );
+
+      scrollMessages();
+
+      return;
+    }
+
+
+    if (
+      data.type ===
+      "groupMessage"
+    ) {
+
+      if (
+        currentChat !==
+        "general"
+      ) {
+        return;
+      }
+
+      appendGroupMessage(
         data.message,
         true
       );
 
+      scrollMessages();
+
+      return;
     }
 
-    return;
-  }
 
-
-  if (
-    data.type ===
-    "message"
-  ) {
+    /* =========================
+       PRIVATE CHAT
+    ========================= */
 
     if (
-      currentChat === data.from ||
-      currentChat === data.to
+      data.type ===
+      "privateMessages"
     ) {
 
-      const message = {
-
-        from:
-          data.from,
-
-        to:
-          data.to,
-
-        text:
-          data.text,
-
-        time:
-          data.time
-
-      };
-
-      addMessageToScreen(
-        message,
-        false
-      );
-
-    }
-
-    return;
-  }
-
-
-  if (
-    data.type ===
-    "passwordResetRequest"
-  ) {
-
-    if (isAdmin) {
-
-      addResetRequest(
+      if (
+        currentChat !==
         data.username
+      ) {
+        return;
+      }
+
+      clearMessages();
+
+      const messages =
+        Array.isArray(
+          data.messages
+        )
+          ? data.messages
+          : [];
+
+      messages.forEach(
+        message => {
+
+          appendPrivateMessage(
+            message
+          );
+
+        }
       );
 
+      scrollMessages();
+
+      return;
     }
 
-    return;
+
+    if (
+      data.type === "message"
+    ) {
+
+      const otherUser =
+        data.from === currentUser
+          ? data.to
+          : data.from;
+
+      if (
+        currentChat ===
+        otherUser
+      ) {
+
+        appendPrivateMessage(
+          data
+        );
+
+        scrollMessages();
+
+      }
+
+      return;
+    }
+
+
+    /* =========================
+       ADMIN PASSWORD RESET
+    ========================= */
+
+    if (
+      data.type ===
+      "passwordResetRequest"
+    ) {
+
+      pendingResetUser =
+        data.username;
+
+      $("resetRequestText").textContent =
+        "Benutzer „" +
+        data.username +
+        "“ möchte sein Passwort zurücksetzen.";
+
+      $("resetLinkBox")
+        .classList
+        .add("hidden");
+
+      openModal(
+        "resetRequestModal"
+      );
+
+      return;
+    }
+
+
+    if (
+      data.type ===
+      "passwordResetLink"
+    ) {
+
+      $("resetLink").value =
+        data.resetUrl;
+
+      $("resetLinkBox")
+        .classList
+        .remove("hidden");
+
+      return;
+    }
+
   }
 
 
-  if (
-    data.type ===
-    "passwordResetLink"
-  ) {
+  /* =====================================================
+     AUTH
+  ===================================================== */
 
-    showResetLink(
-      data.username,
-      data.resetUrl
-    );
+  function showLogin() {
 
-    return;
+    $("loginForm")
+      .classList
+      .remove("hidden");
+
+    $("registerForm")
+      .classList
+      .add("hidden");
+
+    $("forgotForm")
+      .classList
+      .add("hidden");
+
+    $("loginTab")
+      .classList
+      .add("active");
+
+    $("registerTab")
+      .classList
+      .remove("active");
+
+    showAuthMessage("");
   }
 
-}
+
+  function showRegister() {
+
+    $("loginForm")
+      .classList
+      .add("hidden");
+
+    $("registerForm")
+      .classList
+      .remove("hidden");
+
+    $("forgotForm")
+      .classList
+      .add("hidden");
+
+    $("loginTab")
+      .classList
+      .remove("active");
+
+    $("registerTab")
+      .classList
+      .add("active");
+
+    showAuthMessage("");
+  }
 
 
-/* =========================
-   AUTH MESSAGE
-========================= */
+  function showForgot() {
 
-function setAuthMessage(
-  id,
-  text,
-  type = ""
-) {
+    $("loginForm")
+      .classList
+      .add("hidden");
 
-  const element = $(id);
+    $("registerForm")
+      .classList
+      .add("hidden");
 
-  element.textContent = text;
+    $("forgotForm")
+      .classList
+      .remove("hidden");
 
-  element.className =
-    `auth-message ${type}`;
+    $("loginTab")
+      .classList
+      .remove("active");
 
-}
+    $("registerTab")
+      .classList
+      .remove("active");
+
+    showAuthMessage("");
+  }
 
 
-/* =========================
-   LOGIN
-========================= */
+  function login() {
 
-$("loginBtn").onclick =
-  () => {
-
-    const user =
+    const username =
       $("loginUsername")
         .value
-        .trim()
-        .toLowerCase();
+        .trim();
 
     const password =
       $("loginPassword")
         .value;
 
+    if (!username || !password) {
 
-    if (!user || !password) {
-
-      setAuthMessage(
-        "loginMessage",
-        "Bitte Benutzername und Passwort eingeben.",
-        "error"
+      showAuthMessage(
+        "Bitte alles ausfüllen."
       );
 
       return;
     }
 
-
-    if (
-      !socket ||
-      socket.readyState !==
-        WebSocket.OPEN
-    ) {
-
-      connect();
-
-      setTimeout(
-        () =>
-          send({
-            type: "login",
-            username: user,
-            password
-          }),
-        500
-      );
-
-      return;
-    }
-
-
-    send({
-
+    wsSend({
       type: "login",
-
-      username: user,
-
+      username,
       password
-
     });
+  }
 
-  };
 
+  function register() {
 
-/* =========================
-   REGISTER
-========================= */
-
-$("registerBtn").onclick =
-  () => {
-
-    const user =
+    const username =
       $("registerUsername")
         .value
-        .trim()
-        .toLowerCase();
+        .trim();
 
     const password =
       $("registerPassword")
         .value;
 
-    const password2 =
-      $("registerPassword2")
-        .value;
-
     const accessCode =
-      $("accessCode")
+      $("registerAccessCode")
         .value;
 
+    if (!username ||
+        !password ||
+        !accessCode) {
 
-    if (!user || !password) {
-
-      setAuthMessage(
-        "registerMessage",
-        "Bitte alle Felder ausfüllen.",
-        "error"
+      showAuthMessage(
+        "Bitte alles ausfüllen."
       );
 
       return;
     }
 
-
-    if (
-      password !== password2
-    ) {
-
-      setAuthMessage(
-        "registerMessage",
-        "Die Passwörter stimmen nicht überein.",
-        "error"
-      );
-
-      return;
-    }
-
-
-    if (
-      password.length < 8
-    ) {
-
-      setAuthMessage(
-        "registerMessage",
-        "Das Passwort muss mindestens 8 Zeichen haben.",
-        "error"
-      );
-
-      return;
-    }
-
-
-    if (
-      !socket ||
-      socket.readyState !==
-        WebSocket.OPEN
-    ) {
-
-      connect();
-
-      setTimeout(
-        () =>
-          send({
-            type: "register",
-            username: user,
-            password,
-            accessCode
-          }),
-        500
-      );
-
-      return;
-    }
-
-
-    send({
-
+    wsSend({
       type: "register",
-
-      username: user,
-
+      username,
       password,
-
       accessCode
-
     });
+  }
 
-  };
 
+  function forgotPassword() {
 
-/* =========================
-   FORGOT
-========================= */
-
-$("forgotBtn").onclick =
-  () => {
-
-    const user =
+    const username =
       $("forgotUsername")
         .value
-        .trim()
-        .toLowerCase();
+        .trim();
 
+    if (!username) {
 
-    if (!user) {
-
-      setAuthMessage(
-        "forgotMessage",
-        "Bitte Benutzername eingeben.",
-        "error"
+      showAuthMessage(
+        "Bitte Benutzername eingeben."
       );
 
       return;
     }
 
-
-    send({
-
+    wsSend({
       type:
         "forgotPassword",
+      username
+    });
+  }
 
-      username:
-        user
 
+  function showAuthMessage(text) {
+
+    $("authMessage").textContent =
+      text || "";
+  }
+
+
+  /* =====================================================
+     APP
+  ===================================================== */
+
+  function showApp() {
+
+    $("authScreen")
+      .classList
+      .add("hidden");
+
+    $("app")
+      .classList
+      .remove("hidden");
+
+    $("brandUser").textContent =
+      "@" + currentUser;
+
+    $("settingsUsername").textContent =
+      "@" + currentUser;
+
+    connectSocket();
+
+    requestFriends();
+
+    openGeneralChat();
+
+    handleResetUrl();
+  }
+
+
+  function logout() {
+
+    currentUser = null;
+
+    if (socket) {
+
+      try {
+        socket.close();
+      } catch {}
+    }
+
+    location.reload();
+  }
+
+
+  /* =====================================================
+     FRIENDS
+  ===================================================== */
+
+  function requestFriends() {
+
+    wsSend({
+      type: "getFriends"
+    });
+  }
+
+
+  function renderFriends() {
+
+    const list =
+      $("friendsList");
+
+    list.innerHTML = "";
+
+    if (!friends.length) {
+
+      const empty =
+        document.createElement(
+          "div"
+        );
+
+      empty.style.color =
+        "#555";
+
+      empty.style.fontSize =
+        "12px";
+
+      empty.style.padding =
+        "8px 10px";
+
+      empty.textContent =
+        "Noch keine Freunde.";
+
+      list.appendChild(
+        empty
+      );
+
+      return;
+    }
+
+    friends.forEach(
+      username => {
+
+        const button =
+          document.createElement(
+            "button"
+          );
+
+        button.className =
+          "chat-item";
+
+        button.onclick = () =>
+          openPrivateChat(
+            username
+          );
+
+        const avatar =
+          document.createElement(
+            "div"
+          );
+
+        avatar.className =
+          "avatar";
+
+        avatar.textContent =
+          username
+            .charAt(0)
+            .toUpperCase();
+
+        const info =
+          document.createElement(
+            "div"
+          );
+
+        info.className =
+          "chat-info";
+
+        const name =
+          document.createElement(
+            "div"
+          );
+
+        name.className =
+          "chat-name";
+
+        if (
+          ADMINS.includes(
+            username
+          )
+        ) {
+
+          name.innerHTML =
+            "👑 " +
+            adminNameHTML(
+              username
+            );
+
+        } else {
+
+          name.textContent =
+            username;
+
+        }
+
+        const sub =
+          document.createElement(
+            "div"
+          );
+
+        sub.className =
+          "chat-sub";
+
+        sub.textContent =
+          "Privater Chat";
+
+        info.appendChild(name);
+        info.appendChild(sub);
+
+        button.appendChild(
+          avatar
+        );
+
+        button.appendChild(
+          info
+        );
+
+        list.appendChild(
+          button
+        );
+
+      }
+    );
+  }
+
+
+  function openAddFriend() {
+
+    $("friendUsername").value =
+      "";
+
+    $("friendMessage").textContent =
+      "";
+
+    openModal(
+      "friendModal"
+    );
+  }
+
+
+  function addFriend() {
+
+    const username =
+      $("friendUsername")
+        .value
+        .trim();
+
+    if (!username) {
+
+      $("friendMessage").textContent =
+        "Bitte Benutzername eingeben.";
+
+      return;
+    }
+
+    wsSend({
+      type: "addFriend",
+      username
+    });
+  }
+
+
+  /* =====================================================
+     GENERAL CHAT
+  ===================================================== */
+
+  function openGeneralChat() {
+
+    currentChat =
+      "general";
+
+    $("headerTitle").textContent =
+      "Allgemein";
+
+    $("headerStatus").textContent =
+      ADMINS.includes(currentUser)
+        ? "Gruppenchat · Admin"
+        : "Gruppenchat · Nur lesen";
+
+    $("generalChatButton")
+      .classList
+      .add("active");
+
+    document
+      .querySelectorAll(
+        ".chat-item"
+      )
+      .forEach(
+        item => {
+
+          if (
+            item !==
+            $("generalChatButton")
+          ) {
+            item.classList.remove(
+              "active"
+            );
+          }
+
+        }
+      );
+
+    if (
+      ADMINS.includes(
+        currentUser
+      )
+    ) {
+
+      $("composer")
+        .classList
+        .remove("readonly");
+
+      $("messageInput")
+        .disabled = false;
+
+      $("messageInput")
+        .placeholder =
+        "Nachricht an Allgemein...";
+
+    } else {
+
+      $("composer")
+        .classList
+        .add("readonly");
+
+      $("messageInput")
+        .disabled = true;
+
+      $("messageInput")
+        .placeholder =
+        "Nur Admins können hier schreiben";
+
+    }
+
+    clearMessages();
+
+    requestGroupMessages();
+
+    closeSidebarMobile();
+  }
+
+
+  function requestGroupMessages() {
+
+    wsSend({
+      type:
+        "getGroupMessages"
+    });
+  }
+
+
+  function appendGroupMessage(
+    message,
+    isNew
+  ) {
+
+    if (!message) return;
+
+    const username =
+      String(
+        message.username ||
+        ""
+      );
+
+    const text =
+      String(
+        message.text ||
+        ""
+      );
+
+    if (!username || !text)
+      return;
+
+    removeEmpty();
+
+    const wrapper =
+      document.createElement(
+        "div"
+      );
+
+    wrapper.className =
+      "message";
+
+    if (
+      username ===
+      currentUser
+    ) {
+      wrapper.classList.add(
+        "mine"
+      );
+    }
+
+    const user =
+      document.createElement(
+        "div"
+      );
+
+    user.className =
+      "message-user";
+
+    if (
+      ADMINS.includes(
+        username
+      )
+    ) {
+
+      user.innerHTML =
+        "👑 " +
+        adminNameHTML(
+          username
+        );
+
+    } else {
+
+      user.textContent =
+        username;
+
+    }
+
+    const bubble =
+      document.createElement(
+        "div"
+      );
+
+    bubble.className =
+      "bubble";
+
+    bubble.textContent =
+      text;
+
+    const time =
+      document.createElement(
+        "div"
+      );
+
+    time.className =
+      "message-time";
+
+    time.textContent =
+      formatTime(
+        message.time
+      );
+
+    wrapper.appendChild(
+      user
+    );
+
+    wrapper.appendChild(
+      bubble
+    );
+
+    wrapper.appendChild(
+      time
+    );
+
+    $("messages")
+      .appendChild(
+        wrapper
+      );
+
+  }
+
+
+  /* =====================================================
+     PRIVATE CHAT
+  ===================================================== */
+
+  function openPrivateChat(
+    username
+  ) {
+
+    currentChat =
+      username;
+
+    $("headerTitle").innerHTML =
+      ADMINS.includes(username)
+        ? "👑 " +
+          adminNameHTML(username)
+        : escapeHTML(username);
+
+    $("headerStatus").textContent =
+      "Privater Chat";
+
+    $("generalChatButton")
+      .classList
+      .remove("active");
+
+    document
+      .querySelectorAll(
+        ".chat-item"
+      )
+      .forEach(
+        item => {
+
+          if (
+            item !==
+            $("generalChatButton")
+          ) {
+            item.classList.remove(
+              "active"
+            );
+          }
+
+        }
+      );
+
+    $("composer")
+      .classList
+      .remove("readonly");
+
+    $("messageInput")
+      .disabled = false;
+
+    $("messageInput")
+      .placeholder =
+      "Nachricht schreiben...";
+
+    clearMessages();
+
+    wsSend({
+      type:
+        "getPrivateMessages",
+
+      username
     });
 
-  };
+    closeSidebarMobile();
+  }
 
 
-/* =========================
-   RESET
-========================= */
+  function appendPrivateMessage(
+    message
+  ) {
 
-let resetToken =
-  new URLSearchParams(
-    location.search
-  ).get("reset");
+    if (!message) return;
+
+    const from =
+      message.from ||
+      message.sender ||
+      "";
+
+    const text =
+      message.text ||
+      "";
+
+    if (!from || !text)
+      return;
+
+    removeEmpty();
+
+    const wrapper =
+      document.createElement(
+        "div"
+      );
+
+    wrapper.className =
+      "message";
+
+    if (
+      from ===
+      currentUser
+    ) {
+
+      wrapper.classList.add(
+        "mine"
+      );
+    }
+
+    const user =
+      document.createElement(
+        "div"
+      );
+
+    user.className =
+      "message-user";
+
+    if (
+      ADMINS.includes(from)
+    ) {
+
+      user.innerHTML =
+        "👑 " +
+        adminNameHTML(from);
+
+    } else {
+
+      user.textContent =
+        from;
+
+    }
+
+    const bubble =
+      document.createElement(
+        "div"
+      );
+
+    bubble.className =
+      "bubble";
+
+    bubble.textContent =
+      text;
+
+    const time =
+      document.createElement(
+        "div"
+      );
+
+    time.className =
+      "message-time";
+
+    time.textContent =
+      formatTime(
+        message.time
+      );
+
+    wrapper.appendChild(
+      user
+    );
+
+    wrapper.appendChild(
+      bubble
+    );
+
+    wrapper.appendChild(
+      time
+    );
+
+    $("messages")
+      .appendChild(
+        wrapper
+      );
+  }
 
 
-$("resetBtn").onclick =
-  () => {
+  function sendMessage() {
+
+    const input =
+      $("messageInput");
+
+    const text =
+      input.value.trim();
+
+    if (!text)
+      return;
+
+    if (
+      currentChat ===
+      "general"
+    ) {
+
+      if (
+        !ADMINS.includes(
+          currentUser
+        )
+      ) {
+        return;
+      }
+
+      wsSend({
+        type:
+          "groupMessage",
+
+        text
+      });
+
+    } else {
+
+      wsSend({
+        type:
+          "message",
+
+        to:
+          currentChat,
+
+        text
+      });
+    }
+
+    input.value = "";
+    input.focus();
+  }
+
+
+  function handleMessageKey(
+    event
+  ) {
+
+    if (
+      event.key ===
+      "Enter"
+    ) {
+
+      event.preventDefault();
+
+      sendMessage();
+    }
+  }
+
+
+  /* =====================================================
+     UI HELPERS
+  ===================================================== */
+
+  function clearMessages() {
+
+    $("messages").innerHTML =
+      `
+        <div
+          class="empty"
+          id="emptyMessage">
+          Noch keine Nachrichten.
+        </div>
+      `;
+  }
+
+
+  function removeEmpty() {
+
+    const empty =
+      $("emptyMessage");
+
+    if (empty) {
+      empty.remove();
+    }
+  }
+
+
+  function scrollMessages() {
+
+    const messages =
+      $("messages");
+
+    setTimeout(
+      () => {
+
+        messages.scrollTop =
+          messages.scrollHeight;
+
+      },
+      20
+    );
+  }
+
+
+  function formatTime(
+    timestamp
+  ) {
+
+    if (!timestamp)
+      return "";
+
+    const date =
+      new Date(
+        Number(timestamp)
+      );
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return "";
+    }
+
+    return date.toLocaleTimeString(
+      "de-DE",
+      {
+        hour: "2-digit",
+        minute: "2-digit"
+      }
+    );
+  }
+
+
+  function adminNameHTML(
+    username
+  ) {
+
+    return (
+      '<span class="admin-name">' +
+      escapeHTML(username) +
+      '</span>'
+    );
+  }
+
+
+  function escapeHTML(
+    value
+  ) {
+
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+
+  /* =====================================================
+     MODALS
+  ===================================================== */
+
+  function openModal(id) {
+
+    $(id)
+      .classList
+      .remove("hidden");
+  }
+
+
+  function closeModal(id) {
+
+    $(id)
+      .classList
+      .add("hidden");
+  }
+
+
+  /* =====================================================
+     SETTINGS / THEME
+  ===================================================== */
+
+  function openSettings() {
+
+    updateThemeSwitch();
+
+    openModal(
+      "settingsModal"
+    );
+
+    closeSidebarMobile();
+  }
+
+
+  function toggleTheme() {
+
+    document.body
+      .classList
+      .toggle("light");
+
+    localStorage.setItem(
+      "fortxTheme",
+      document.body
+        .classList
+        .contains("light")
+        ? "light"
+        : "dark"
+    );
+
+    updateThemeSwitch();
+  }
+
+
+  function updateThemeSwitch() {
+
+    const light =
+      document.body
+        .classList
+        .contains("light");
+
+    if (light) {
+
+      $("themeSwitch")
+        .classList
+        .add("light");
+
+    } else {
+
+      $("themeSwitch")
+        .classList
+        .remove("light");
+
+    }
+  }
+
+
+  function loadTheme() {
+
+    const theme =
+      localStorage.getItem(
+        "fortxTheme"
+      );
+
+    if (theme === "light") {
+
+      document.body
+        .classList
+        .add("light");
+
+    } else {
+
+      document.body
+        .classList
+        .remove("light");
+
+    }
+  }
+
+
+  /* =====================================================
+     MOBILE SIDEBAR
+  ===================================================== */
+
+  function toggleSidebar() {
+
+    $("sidebar")
+      .classList
+      .toggle("open");
+  }
+
+
+  function closeSidebarMobile() {
+
+    $("sidebar")
+      .classList
+      .remove("open");
+  }
+
+
+  /* =====================================================
+     PASSWORD RESET
+  ===================================================== */
+
+  function handleResetUrl() {
+
+    const params =
+      new URLSearchParams(
+        location.search
+      );
+
+    const token =
+      params.get(
+        "reset"
+      );
+
+    if (!token)
+      return;
+
+    resetToken =
+      token;
+
+    openModal(
+      "passwordResetModal"
+    );
+  }
+
+
+  function resetPassword() {
 
     const password =
-      $("resetPassword")
+      $("newPassword")
         .value;
-
-    const password2 =
-      $("resetPassword2")
-        .value;
-
 
     if (
       password.length < 8
     ) {
 
-      setAuthMessage(
-        "resetMessage",
-        "Das Passwort muss mindestens 8 Zeichen haben.",
-        "error"
-      );
+      $("resetMessage")
+        .textContent =
+        "Mindestens 8 Zeichen.";
 
       return;
     }
 
-
-    if (
-      password !== password2
-    ) {
-
-      setAuthMessage(
-        "resetMessage",
-        "Die Passwörter stimmen nicht überein.",
-        "error"
-      );
-
-      return;
-    }
-
-
-    send({
-
+    wsSend({
       type:
         "resetPassword",
 
@@ -2055,1042 +2660,70 @@ $("resetBtn").onclick =
         resetToken,
 
       password
-
     });
-
-  };
-
-
-/* =========================
-   ENTER APP
-========================= */
-
-function enterApp() {
-
-  showScreen("app");
-
-  $("currentUser").innerHTML =
-    displayName(username);
-
-  $("settingsUsername").innerHTML =
-    displayName(username);
-
-
-  if (isAdmin) {
-
-    $("adminSettings")
-      .classList.remove(
-        "hidden"
-      );
-
-  } else {
-
-    $("adminSettings")
-      .classList.add(
-        "hidden"
-      );
-
   }
 
 
-  connect();
-
-  openGroupChat();
-
-}
-
-
-/* =========================
-   FREUNDE
-========================= */
-
-function loadFriends() {
-
-  send({
-    type: "getFriends"
-  });
-
-}
-
-
-function renderFriends() {
-
-  const list =
-    $("friendsList");
-
-  list.innerHTML = "";
-
-
-  if (!friends.length) {
-
-    const empty =
-      document.createElement(
-        "div"
-      );
-
-    empty.style.cssText =
-      "padding:10px;color:var(--muted);font-size:12px;";
-
-    empty.textContent =
-      "Noch keine Freunde.";
-
-    list.appendChild(
-      empty
-    );
-
-    return;
-  }
-
-
-  friends.forEach(
-    friend => {
-
-      const item =
-        document.createElement(
-          "div"
-        );
-
-      item.className =
-        "chat-item";
-
-      item.innerHTML = `
-
-        <div class="avatar">
-          ${escapeHtml(
-            friend
-              .charAt(0)
-              .toUpperCase()
-          )}
-        </div>
-
-        <div class="chat-item-text">
-
-          <div class="chat-item-name">
-            ${displayName(friend)}
-          </div>
-
-          <div class="chat-item-sub">
-            Privat
-          </div>
-
-        </div>
-
-      `;
-
-      item.onclick =
-        () =>
-          openPrivateChat(
-            friend
-          );
-
-      list.appendChild(
-        item
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================
-   GROUP
-========================= */
-
-$("groupChatButton").onclick =
-  openGroupChat;
-
-
-function openGroupChat() {
-
-  currentChat =
-    "group";
-
-
-  $("chatTitle").innerHTML =
-    "🌐 Allgemein";
-
-
-  $("chatStatus").textContent =
-    isAdmin
-      ? "👑 Du kannst als Admin schreiben"
-      : "Nur Admins können im Allgemein-Chat schreiben";
-
-
-  document
-    .querySelectorAll(".chat-item")
-    .forEach(
-      item =>
-        item.classList.remove(
-          "active"
-        )
-    );
-
-
-  $("groupChatButton")
-    .classList.add(
-      "active"
-    );
-
-
-  $("messageInput")
-    .placeholder =
-      isAdmin
-        ? "Nachricht an alle..."
-        : "Allgemein ist für dich schreibgeschützt";
-
-
-  $("messageInput").disabled =
-    !isAdmin;
-
-
-  $("sendBtn").disabled =
-    !isAdmin;
-
-
-  loadGroupMessages();
-
-}
-
-
-function loadGroupMessages() {
-
-  if (
-    socket &&
-    socket.readyState ===
-      WebSocket.OPEN
-  ) {
-
-    send({
-      type:
-        "getGroupMessages"
-    });
-
-  }
-
-}
-
-
-/* =========================
-   PRIVATE CHAT
-========================= */
-
-function openPrivateChat(friend) {
-
-  currentChat =
-    friend;
-
-
-  $("chatTitle").innerHTML =
-    `💬 ${displayName(friend)}`;
-
-
-  $("chatStatus").textContent =
-    "Privater Chat";
-
-
-  $("messageInput").disabled =
-    false;
-
-  $("sendBtn").disabled =
-    false;
-
-
-  document
-    .querySelectorAll(".chat-item")
-    .forEach(
-      item =>
-        item.classList.remove(
-          "active"
-        )
-    );
-
-
-  send({
-
-    type:
-      "getPrivateMessages",
-
-    username:
-      friend
-
-  });
-
-}
-
-
-/* =========================
-   MESSAGES
-========================= */
-
-function renderMessages(
-  messages,
-  group
-) {
-
-  const container =
-    $("messages");
-
-  container.innerHTML = "";
-
-
-  if (!messages.length) {
-
-    const empty =
-      document.createElement(
-        "div"
-      );
-
-    empty.className =
-      "empty-chat";
-
-    empty.innerHTML = `
-      <div>
-        <div style="font-size:42px;margin-bottom:10px;">
-          💬
-        </div>
-        Noch keine Nachrichten.
-      </div>
-    `;
-
-    container.appendChild(
-      empty
-    );
-
-    return;
-  }
-
-
-  messages.forEach(
-    message =>
-      addMessageToScreen(
-        message,
-        group
-      )
-  );
-
-
-  scrollMessages();
-
-}
-
-
-function addMessageToScreen(
-  message,
-  group
-) {
-
-  const empty =
-    $("messages")
-      .querySelector(
-        ".empty-chat"
-      );
-
-  if (empty) {
-    empty.remove();
-  }
-
-
-  const sender =
-    group
-      ? message.username
-      : message.from;
-
-
-  const mine =
-    sender === username;
-
-
-  const row =
-    document.createElement(
-      "div"
-    );
-
-  row.className =
-    `message ${
-      mine ? "mine" : ""
-    }`;
-
-
-  const bubble =
-    document.createElement(
-      "div"
-    );
-
-  bubble.className =
-    "message-bubble";
-
-
-  const user =
-    document.createElement(
-      "div"
-    );
-
-  user.className =
-    "message-user";
-
-  user.innerHTML =
-    displayName(sender);
-
-
-  const text =
-    document.createElement(
-      "div"
-    );
-
-  text.className =
-    "message-text";
-
-  text.textContent =
-    message.text || "";
-
-
-  const time =
-    document.createElement(
-      "div"
-    );
-
-  time.className =
-    "message-time";
-
-  time.textContent =
-    formatTime(
-      message.time
-    );
-
-
-  bubble.appendChild(
-    user
-  );
-
-  bubble.appendChild(
-    text
-  );
-
-  bubble.appendChild(
-    time
-  );
-
-
-  row.appendChild(
-    bubble
-  );
-
-
-  $("messages")
-    .appendChild(
-      row
-    );
-
-
-  scrollMessages();
-
-}
-
-
-function formatTime(time) {
-
-  if (!time) {
-    return "";
-  }
-
-  return new Date(
-    Number(time)
-  ).toLocaleTimeString(
-    "de-DE",
-    {
-      hour: "2-digit",
-      minute: "2-digit"
-    }
-  );
-
-}
-
-
-function scrollMessages() {
-
-  const messages =
-    $("messages");
-
-  messages.scrollTop =
-    messages.scrollHeight;
-
-}
-
-
-/* =========================
-   SEND MESSAGE
-========================= */
-
-function sendCurrentMessage() {
-
-  const input =
-    $("messageInput");
-
-  const text =
-    input.value.trim();
-
-
-  if (!text) {
-    return;
-  }
-
-
-  if (
-    currentChat === "group"
-  ) {
-
-    if (!isAdmin) {
-
-      showCurrentMessage(
-        "Nur Admins können im Allgemein-Chat schreiben.",
-        true
-      );
-
-      return;
-    }
-
-
-    send({
-
-      type:
-        "groupMessage",
-
-      text
-
-    });
-
-  } else {
-
-    send({
-
-      type:
-        "message",
-
-      to:
-        currentChat,
-
-      text
-
-    });
-
-  }
-
-
-  input.value = "";
-
-}
-
-
-$("sendBtn").onclick =
-  sendCurrentMessage;
-
-
-$("messageInput").addEventListener(
-  "keydown",
-  event => {
+  function createResetLink() {
 
     if (
-      event.key === "Enter" &&
-      !event.shiftKey
+      !pendingResetUser
     ) {
-
-      event.preventDefault();
-
-      sendCurrentMessage();
-
-    }
-
-  }
-);
-
-
-/* =========================
-   ADD FRIEND
-========================= */
-
-$("addFriendBtn").onclick =
-  () => {
-
-    $("friendModal")
-      .classList.remove(
-        "hidden"
-      );
-
-    $("friendUsername")
-      .focus();
-
-  };
-
-
-$("closeFriendModal").onclick =
-  () =>
-    $("friendModal")
-      .classList.add(
-        "hidden"
-      );
-
-
-$("confirmFriendBtn").onclick =
-  () => {
-
-    const friend =
-      $("friendUsername")
-        .value
-        .trim()
-        .toLowerCase();
-
-
-    if (!friend) {
-
-      setAuthMessage(
-        "friendMessage",
-        "Bitte Benutzername eingeben.",
-        "error"
-      );
-
       return;
     }
 
-
-    send({
-
+    wsSend({
       type:
-        "addFriend",
+        "createPasswordReset",
 
       username:
-        friend
-
+        pendingResetUser
     });
-
-  };
-
-
-/* =========================
-   ADMIN RESET
-========================= */
-
-function addResetRequest(
-  name
-) {
-
-  if (
-    resetRequests.includes(name)
-  ) {
-    return;
   }
 
 
-  resetRequests.push(name);
+  async function copyResetLink() {
 
-  renderResetRequests();
-
-
-  if (
-    $("settingsModal")
-      .classList.contains(
-        "hidden"
-      )
-  ) {
-
-    $("settingsModal")
-      .classList.remove(
-        "hidden"
-      );
-
-  }
-
-}
-
-
-function renderResetRequests() {
-
-  const list =
-    $("resetRequestsList");
-
-  list.innerHTML = "";
-
-
-  if (!resetRequests.length) {
-
-    list.textContent =
-      "Keine offenen Anfragen.";
-
-    return;
-  }
-
-
-  resetRequests.forEach(
-    name => {
-
-      const item =
-        document.createElement(
-          "div"
-        );
-
-      item.className =
-        "reset-request";
-
-
-      item.innerHTML = `
-
-        <div class="reset-request-name">
-          ${displayName(name)}
-        </div>
-
-        <button
-          class="reset-btn"
-          data-user="${escapeHtml(name)}"
-        >
-          🔑 Reset-Link erstellen
-        </button>
-
-      `;
-
-
-      item
-        .querySelector(
-          ".reset-btn"
-        )
-        .onclick =
-          () =>
-            createResetLink(name);
-
-
-      list.appendChild(
-        item
-      );
-
-    }
-  );
-
-}
-
-
-function createResetLink(name) {
-
-  send({
-
-    type:
-      "createPasswordReset",
-
-    username:
-      name
-
-  });
-
-}
-
-
-function showResetLink(
-  name,
-  url
-) {
-
-  alert(
-    `🔐 Passwort-Reset für ${name}\n\n${url}\n\nDer Link ist 15 Minuten gültig.`
-  );
-
-
-  resetRequests =
-    resetRequests.filter(
-      item =>
-        item !== name
-    );
-
-
-  renderResetRequests();
-
-}
-
-
-/* =========================
-   SETTINGS
-========================= */
-
-$("settingsBtn").onclick =
-  () => {
-
-    $("settingsModal")
-      .classList.remove(
-        "hidden"
-      );
-
-    renderResetRequests();
-
-  };
-
-
-function closeSettings() {
-
-  $("settingsModal")
-    .classList.add(
-      "hidden"
-    );
-
-}
-
-
-$("closeSettings").onclick =
-  closeSettings;
-
-$("closeSettings2").onclick =
-  closeSettings;
-
-
-/* =========================
-   THEME
-========================= */
-
-function applyTheme(theme) {
-
-  if (theme === "light") {
-
-    document.body
-      .classList.add(
-        "light"
-      );
-
-  } else {
-
-    document.body
-      .classList.remove(
-        "light"
-      );
-
-  }
-
-
-  localStorage.setItem(
-    "neonchat-theme",
-    theme
-  );
-
-
-  $("darkTheme")
-    .classList.toggle(
-      "active",
-      theme === "dark"
-    );
-
-  $("lightTheme")
-    .classList.toggle(
-      "active",
-      theme === "light"
-    );
-
-}
-
-
-$("darkTheme").onclick =
-  () =>
-    applyTheme("dark");
-
-
-$("lightTheme").onclick =
-  () =>
-    applyTheme("light");
-
-
-applyTheme(
-  localStorage.getItem(
-    "neonchat-theme"
-  ) || "dark"
-);
-
-
-/* =========================
-   NAVIGATION AUTH
-========================= */
-
-$("showRegisterBtn").onclick =
-  () => {
-
-    showScreen(
-      "registerScreen"
-    );
-
-  };
-
-
-$("showForgotBtn").onclick =
-  () => {
-
-    showScreen(
-      "forgotScreen"
-    );
-
-  };
-
-
-$("backLoginBtn").onclick =
-  () => {
-
-    showScreen(
-      "loginScreen"
-    );
-
-  };
-
-
-$("forgotBackBtn").onclick =
-  () => {
-
-    showScreen(
-      "loginScreen"
-    );
-
-  };
-
-
-/* =========================
-   LOGOUT
-========================= */
-
-$("logoutBtn").onclick =
-  () => {
-
-    username = "";
-    isAdmin = false;
-    friends = [];
-    resetRequests = [];
-    currentChat = "group";
-
+    const link =
+      $("resetLink").value;
 
     try {
 
-      if (socket) {
-        socket.close();
-      }
+      await navigator.clipboard
+        .writeText(link);
 
-    } catch {}
+      alert(
+        "Reset-Link kopiert."
+      );
 
+    } catch {
 
-    socket = null;
+      $("resetLink")
+        .select();
 
-
-    $("loginUsername").value =
-      "";
-
-    $("loginPassword").value =
-      "";
-
-    $("loginMessage").textContent =
-      "";
-
-
-    showScreen(
-      "loginScreen"
-    );
-
-  };
-
-
-/* =========================
-   FEHLER ANZEIGEN
-========================= */
-
-function showCurrentMessage(
-  text,
-  error = false
-) {
-
-  if (
-    $("app")
-      .classList.contains(
-        "hidden"
-      )
-  ) {
-
-    setAuthMessage(
-      "loginMessage",
-      text,
-      error
-        ? "error"
-        : ""
-    );
-
-    return;
+      document.execCommand(
+        "copy"
+      );
+    }
   }
 
 
-  $("chatStatus").textContent =
-    text;
+  /* =====================================================
+     START
+  ===================================================== */
 
-  setTimeout(
+  loadTheme();
+
+  connectSocket();
+
+  window.addEventListener(
+    "load",
     () => {
 
-      if (
-        currentChat === "group"
-      ) {
-
-        $("chatStatus")
-          .textContent =
-            isAdmin
-              ? "👑 Du kannst als Admin schreiben"
-              : "Nur Admins können im Allgemein-Chat schreiben";
-
-      } else {
-
-        $("chatStatus")
-          .textContent =
-            "Privater Chat";
-
-      }
-
-    },
-    3500
-  );
-
-}
-
-
-/* =========================
-   RESET-LINK BEIM ÖFFNEN
-========================= */
-
-if (resetToken) {
-
-  showScreen(
-    "resetScreen"
-  );
-
-}
-
-
-/* =========================
-   START
-========================= */
-
-if (!resetToken) {
-
-  showScreen(
-    "loginScreen"
-  );
-
-  connect();
-
-}
-
-
-/* =========================
-   ENTER = LOGIN
-========================= */
-
-$("loginPassword").addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      event.key === "Enter"
-    ) {
-
-      $("loginBtn").click();
+      handleResetUrl();
 
     }
-
-  }
-);
+  );
 
 </script>
 
