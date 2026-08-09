@@ -50,9 +50,8 @@ function hashPassword(password) {
     64
   ).toString("hex");
 
-  return `${salt}:${hash}`;
+  return salt + ":" + hash;
 }
-
 function verifyPassword(password, stored) {
   try {
     const [salt, originalHash] = stored.split(":");
