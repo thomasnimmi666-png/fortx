@@ -82,7 +82,6 @@ function hashToken(token) {
     .update(token)
     .digest("hex");
 }
-
 async function initDatabase() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -123,6 +122,7 @@ async function initDatabase() {
 
   console.log("🗄️ Datenbank bereit");
 }
+
 async function ensureAdminContacts(username) {
   const normalized = normalizeUsername(username);
 
