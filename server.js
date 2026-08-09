@@ -25,16 +25,75 @@ function isAdmin(username) {
   );
 }
 
-/* =========================
-   DATENBANK
-========================= */
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL
     ? { rejectUnauthorized: false }
     : false
 });
+
+function send(socket, data) {
+  if (
+    socket &&
+    socket.readyState === WebSocket.OPEN
+  ) {
+    socket.send(JSON.stringify(data));
+  }
+}
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+
+  const hash = crypto.scryptSync(
+    password,
+    salt,
+    64
+  ).toString("hex");
+
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  try {
+    const parts = String(stored || "").split(":");
+
+    if (parts.length !== 2) {
+      return false;
+    }
+
+    const salt = parts[0];
+    const originalHash = parts[1];
+
+    const hash = crypto.scryptSync(
+      password,
+      salt,
+      64
+    );
+
+    const original = Buffer.from(
+      originalHash,
+      "hex"
+    );
+
+    return (
+      hash.length === original.length &&
+      crypto.timingSafeEqual(hash, original)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hashToken(token) {
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+}
+
+/* =========================
+   DATENBANK
+========================= */
 
 async function initDatabase() {
   await pool.query(`
@@ -75,7 +134,10 @@ async function initDatabase() {
     )
   `);
 
-  /* Fehlende Spalten alter Datenbanken ergänzen */
+  /*
+   * Fehlende Spalten bei älteren Datenbanken
+   * automatisch ergänzen.
+   */
 
   await pool.query(`
     ALTER TABLE messages
@@ -100,7 +162,8 @@ async function initDatabase() {
   /*
    * Alte friends-Tabelle reparieren.
    *
-   * Falls friend_username fehlt, wird die Spalte angelegt.
+   * Falls friend_username fehlt, wird die Spalte
+   * automatisch angelegt.
    */
 
   await pool.query(`
@@ -112,109 +175,42 @@ async function initDatabase() {
 }
 
 /* =========================
-   HILFSFUNKTIONEN
-========================= */
-
-function send(socket, data) {
-  if (
-    socket &&
-    socket.readyState === WebSocket.OPEN
-  ) {
-    socket.send(JSON.stringify(data));
-  }
-}
-
-function hashPassword(password) {
-  const salt = crypto
-    .randomBytes(16)
-    .toString("hex");
-
-  const hash = crypto
-    .scryptSync(password, salt, 64)
-    .toString("hex");
-
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(password, stored) {
-  try {
-    const parts = String(stored || "").split(":");
-
-    if (parts.length !== 2) {
-      return false;
-    }
-
-    const salt = parts[0];
-    const originalHash = parts[1];
-
-    const hash = crypto.scryptSync(
-      password,
-      salt,
-      64
-    );
-
-    const original = Buffer.from(
-      originalHash,
-      "hex"
-    );
-
-    return (
-      hash.length === original.length &&
-      crypto.timingSafeEqual(
-        hash,
-        original
-      )
-    );
-  } catch {
-    return false;
-  }
-}
-
-function hashToken(token) {
-  return crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
-}
-
-/* =========================
    ADMIN-KONTAKTE
 ========================= */
 
 async function ensureAdminContacts(username) {
-  const normalized =
-    normalizeUsername(username);
+  const normalized = normalizeUsername(username);
 
   for (const admin of GROUP_ADMINS) {
     if (admin === normalized) {
       continue;
     }
 
-    await pool.query(
-      `
+    await pool.query(`
       INSERT INTO friends
-      (username, friend_username)
+      (
+        username,
+        friend_username
+      )
       VALUES ($1, $2)
       ON CONFLICT DO NOTHING
-      `,
-      [
-        normalized,
-        admin
-      ]
-    );
+    `, [
+      normalized,
+      admin
+    ]);
 
-    await pool.query(
-      `
+    await pool.query(`
       INSERT INTO friends
-      (username, friend_username)
+      (
+        username,
+        friend_username
+      )
       VALUES ($1, $2)
       ON CONFLICT DO NOTHING
-      `,
-      [
-        admin,
-        normalized
-      ]
-    );
+    `, [
+      admin,
+      normalized
+    ]);
   }
 }
 
@@ -226,8 +222,7 @@ async function cleanOldGroupMessages() {
   await pool.query(`
     DELETE FROM messages
     WHERE is_group = TRUE
-    AND created_at <
-      NOW() - INTERVAL '24 hours'
+    AND created_at < NOW() - INTERVAL '24 hours'
   `);
 }
 
@@ -240,7 +235,7 @@ async function cleanResetTokens() {
 }
 
 /* =========================
-   GRUPPENCHAT BROADCAST
+   BROADCAST
 ========================= */
 
 async function broadcastGroup(data) {
@@ -259,8 +254,8 @@ async function broadcastGroup(data) {
 ========================= */
 
 function getFile(reqUrl) {
-  let requested =
-    String(reqUrl || "/").split("?")[0];
+  let requested = String(reqUrl || "/")
+    .split("?")[0];
 
   if (
     requested === "/" ||
@@ -273,8 +268,7 @@ function getFile(reqUrl) {
     path.join(__dirname, requested)
   );
 
-  const root =
-    path.normalize(__dirname);
+  const root = path.normalize(__dirname);
 
   if (
     file !== root &&
@@ -315,30 +309,41 @@ const server = http.createServer(
       return;
     }
 
-    const ext =
-      path.extname(file).toLowerCase();
+    const ext = path
+      .extname(file)
+      .toLowerCase();
 
     const types = {
       ".html":
         "text/html; charset=utf-8",
+
       ".js":
         "application/javascript; charset=utf-8",
+
       ".json":
         "application/json; charset=utf-8",
+
       ".css":
         "text/css; charset=utf-8",
+
       ".png":
         "image/png",
+
       ".jpg":
         "image/jpeg",
+
       ".jpeg":
         "image/jpeg",
+
       ".gif":
         "image/gif",
+
       ".webp":
         "image/webp",
+
       ".svg":
         "image/svg+xml",
+
       ".ico":
         "image/x-icon"
     };
@@ -391,9 +396,9 @@ wss.on(
               raw.toString()
             );
 
-          /* =====================
+          /* =========================
              REGISTRIERUNG
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -420,6 +425,7 @@ wss.on(
                 text:
                   "ACCESS_CODE fehlt auf dem Server."
               });
+
               return;
             }
 
@@ -432,6 +438,7 @@ wss.on(
                 text:
                   "Falscher Zugangscode."
               });
+
               return;
             }
 
@@ -445,6 +452,7 @@ wss.on(
                 text:
                   "Benutzername: 3–30 Zeichen, nur a-z, 0-9 und _."
               });
+
               return;
             }
 
@@ -456,18 +464,18 @@ wss.on(
                 text:
                   "Passwort muss mindestens 8 Zeichen haben."
               });
+
               return;
             }
 
             const exists =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT 1
                 FROM users
                 WHERE username = $1
-                `,
-                [username]
-              );
+              `, [
+                username
+              ]);
 
             if (
               exists.rowCount
@@ -477,22 +485,23 @@ wss.on(
                 text:
                   "Benutzername bereits vergeben."
               });
+
               return;
             }
 
-            await pool.query(
-              `
+            await pool.query(`
               INSERT INTO users
-              (username, password_hash)
-              VALUES ($1, $2)
-              `,
-              [
+              (
                 username,
-                hashPassword(
-                  password
-                )
-              ]
-            );
+                password_hash
+              )
+              VALUES ($1, $2)
+            `, [
+              username,
+              hashPassword(
+                password
+              )
+            ]);
 
             await ensureAdminContacts(
               username
@@ -506,7 +515,9 @@ wss.on(
                 "registered",
               username,
               isAdmin:
-                isAdmin(username)
+                isAdmin(
+                  username
+                )
             });
 
             for (
@@ -532,9 +543,9 @@ wss.on(
             return;
           }
 
-          /* =====================
+          /* =========================
              LOGIN
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -551,16 +562,15 @@ wss.on(
               );
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT
                   username,
                   password_hash
                 FROM users
                 WHERE username = $1
-                `,
-                [username]
-              );
+              `, [
+                username
+              ]);
 
             if (
               !result.rowCount ||
@@ -575,6 +585,7 @@ wss.on(
                 text:
                   "Benutzername oder Passwort falsch."
               });
+
               return;
             }
 
@@ -590,15 +601,17 @@ wss.on(
                 "loggedIn",
               username,
               isAdmin:
-                isAdmin(username)
+                isAdmin(
+                  username
+                )
             });
 
             return;
           }
 
-          /* =====================
+          /* =========================
              PASSWORT VERGESSEN
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -615,18 +628,18 @@ wss.on(
                 text:
                   "Bitte Benutzername eingeben."
               });
+
               return;
             }
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT username
                 FROM users
                 WHERE username = $1
-                `,
-                [username]
-              );
+              `, [
+                username
+              ]);
 
             send(socket, {
               type:
@@ -645,7 +658,8 @@ wss.on(
               type:
                 "passwordResetRequest",
               username,
-              time: Date.now()
+              time:
+                Date.now()
             };
 
             for (
@@ -670,25 +684,25 @@ wss.on(
             return;
           }
 
-          /* =====================
+          /* =========================
              ADMIN RESET LINK
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
             "createPasswordReset"
           ) {
-            const admin =
-              socket.username;
-
             if (
-              !isAdmin(admin)
+              !isAdmin(
+                socket.username
+              )
             ) {
               send(socket, {
                 type: "error",
                 text:
                   "Nur Admins dürfen Reset-Links erstellen."
               });
+
               return;
             }
 
@@ -698,14 +712,13 @@ wss.on(
               );
 
             const user =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT username
                 FROM users
                 WHERE username = $1
-                `,
-                [username]
-              );
+              `, [
+                username
+              ]);
 
             if (
               !user.rowCount
@@ -715,41 +728,39 @@ wss.on(
                 text:
                   "Benutzer nicht gefunden."
               });
+
               return;
             }
 
-            await pool.query(
-              `
+            await pool.query(`
               DELETE FROM password_resets
               WHERE username = $1
-              `,
-              [username]
-            );
+            `, [
+              username
+            ]);
 
             const token =
               crypto
                 .randomBytes(32)
                 .toString("hex");
 
-            await pool.query(
-              `
+            await pool.query(`
               INSERT INTO password_resets
               (
                 token_hash,
                 username,
                 expires_at
               )
-              VALUES (
+              VALUES
+              (
                 $1,
                 $2,
                 NOW() + INTERVAL '15 minutes'
               )
-              `,
-              [
-                hashToken(token),
-                username
-              ]
-            );
+            `, [
+              hashToken(token),
+              username
+            ]);
 
             const baseUrl =
               APP_URL ||
@@ -775,9 +786,9 @@ wss.on(
             return;
           }
 
-          /* =====================
+          /* =========================
              PASSWORT RESET
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -802,20 +813,20 @@ wss.on(
                 text:
                   "Das neue Passwort muss mindestens 8 Zeichen haben."
               });
+
               return;
             }
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT username
                 FROM password_resets
                 WHERE token_hash = $1
                 AND used = FALSE
                 AND expires_at > NOW()
-                `,
-                [hashToken(token)]
-              );
+              `, [
+                hashToken(token)
+              ]);
 
             if (
               !result.rowCount
@@ -825,6 +836,7 @@ wss.on(
                 text:
                   "Reset-Link ungültig oder abgelaufen."
               });
+
               return;
             }
 
@@ -832,28 +844,24 @@ wss.on(
               result.rows[0]
                 .username;
 
-            await pool.query(
-              `
+            await pool.query(`
               UPDATE users
               SET password_hash = $1
               WHERE username = $2
-              `,
-              [
-                hashPassword(
-                  password
-                ),
-                username
-              ]
-            );
+            `, [
+              hashPassword(
+                password
+              ),
+              username
+            ]);
 
-            await pool.query(
-              `
+            await pool.query(`
               UPDATE password_resets
               SET used = TRUE
               WHERE token_hash = $1
-              `,
-              [hashToken(token)]
-            );
+            `, [
+              hashToken(token)
+            ]);
 
             send(socket, {
               type:
@@ -864,9 +872,9 @@ wss.on(
             return;
           }
 
-          /* =====================
+          /* =========================
              BENUTZERLISTE
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -888,19 +896,18 @@ wss.on(
                 text:
                   "Nur Admins dürfen die Benutzerliste sehen."
               });
+
               return;
             }
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT
                   username,
                   created_at
                 FROM users
                 ORDER BY username ASC
-                `
-              );
+              `);
 
             send(socket, {
               type: "users",
@@ -918,9 +925,9 @@ wss.on(
             return;
           }
 
-          /* =====================
+          /* =========================
              FREUND HINZUFÜGEN
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -947,18 +954,18 @@ wss.on(
                 text:
                   "Ungültiger Benutzer."
               });
+
               return;
             }
 
             const user =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT 1
                 FROM users
                 WHERE username = $1
-                `,
-                [friend]
-              );
+              `, [
+                friend
+              ]);
 
             if (
               !user.rowCount
@@ -968,11 +975,11 @@ wss.on(
                 text:
                   "Benutzer nicht gefunden."
               });
+
               return;
             }
 
-            await pool.query(
-              `
+            await pool.query(`
               INSERT INTO friends
               (
                 username,
@@ -980,12 +987,10 @@ wss.on(
               )
               VALUES ($1, $2)
               ON CONFLICT DO NOTHING
-              `,
-              [
-                socket.username,
-                friend
-              ]
-            );
+            `, [
+              socket.username,
+              friend
+            ]);
 
             send(socket, {
               type:
@@ -997,9 +1002,9 @@ wss.on(
             return;
           }
 
-          /* =====================
+          /* =========================
              FREUNDE LADEN
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -1016,22 +1021,18 @@ wss.on(
             );
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT
                   friend_username AS username
                 FROM friends
                 WHERE username = $1
                 ORDER BY friend_username
-                `,
-                [
-                  socket.username
-                ]
-              );
+              `, [
+                socket.username
+              ]);
 
             send(socket, {
-              type:
-                "friends",
+              type: "friends",
               friends:
                 result.rows.map(
                   row =>
@@ -1042,9 +1043,9 @@ wss.on(
             return;
           }
 
-          /* =====================
+          /* =========================
              PRIVATE NACHRICHTEN
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -1062,8 +1063,7 @@ wss.on(
               );
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT
                   sender AS "from",
                   receiver AS "to",
@@ -1086,12 +1086,10 @@ wss.on(
                   )
                 )
                 ORDER BY created_at ASC
-                `,
-                [
-                  socket.username,
-                  other
-                ]
-              );
+              `, [
+                socket.username,
+                other
+              ]);
 
             send(socket, {
               type:
@@ -1122,9 +1120,9 @@ wss.on(
             return;
           }
 
-          /* =====================
+          /* =========================
              GRUPPENCHAT LADEN
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -1139,8 +1137,7 @@ wss.on(
             await cleanOldGroupMessages();
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT
                   sender AS username,
                   text,
@@ -1151,8 +1148,7 @@ wss.on(
                 FROM messages
                 WHERE is_group = TRUE
                 ORDER BY created_at ASC
-                `
-              );
+              `);
 
             send(socket, {
               type:
@@ -1179,9 +1175,9 @@ wss.on(
             return;
           }
 
-          /* =====================
-             GRUPPEN NACHRICHT
-          ===================== */
+          /* =========================
+             GRUPPENNACHRICHT
+          ========================= */
 
           if (
             data.type ===
@@ -1202,6 +1198,7 @@ wss.on(
                 text:
                   "Du darfst im Allgemein-Chat nur lesen."
               });
+
               return;
             }
 
@@ -1225,8 +1222,7 @@ wss.on(
             }
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 INSERT INTO messages
                 (
                   sender,
@@ -1234,7 +1230,8 @@ wss.on(
                   image_url,
                   is_group
                 )
-                VALUES (
+                VALUES
+                (
                   $1,
                   $2,
                   $3,
@@ -1247,13 +1244,11 @@ wss.on(
                   EXTRACT(
                     EPOCH FROM created_at
                   ) * 1000 AS time
-                `,
-                [
-                  username,
-                  text || null,
-                  imageUrl
-                ]
-              );
+              `, [
+                username,
+                text || null,
+                imageUrl
+              ]);
 
             const row =
               result.rows[0];
@@ -1273,16 +1268,17 @@ wss.on(
                   Number(
                     row.time
                   ),
-                isAdmin: true
+                isAdmin:
+                  true
               }
             });
 
             return;
           }
 
-          /* =====================
+          /* =========================
              PRIVATE NACHRICHT
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -1318,14 +1314,13 @@ wss.on(
             }
 
             const target =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT 1
                 FROM users
                 WHERE username = $1
-                `,
-                [to]
-              );
+              `, [
+                to
+              ]);
 
             if (
               !target.rowCount
@@ -1335,12 +1330,12 @@ wss.on(
                 text:
                   "Benutzer nicht gefunden."
               });
+
               return;
             }
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 INSERT INTO messages
                 (
                   sender,
@@ -1349,7 +1344,8 @@ wss.on(
                   image_url,
                   is_group
                 )
-                VALUES (
+                VALUES
+                (
                   $1,
                   $2,
                   $3,
@@ -1360,14 +1356,12 @@ wss.on(
                   EXTRACT(
                     EPOCH FROM created_at
                   ) * 1000 AS time
-                `,
-                [
-                  from,
-                  to,
-                  text || null,
-                  imageUrl
-                ]
-              );
+              `, [
+                from,
+                to,
+                text || null,
+                imageUrl
+              ]);
 
             const message = {
               type:
@@ -1410,9 +1404,9 @@ wss.on(
             return;
           }
 
-          /* =====================
+          /* =========================
              BILD UPLOAD
-          ===================== */
+          ========================= */
 
           if (
             data.type ===
@@ -1448,6 +1442,7 @@ wss.on(
                 text:
                   "Ungültiges Bild."
               });
+
               return;
             }
 
@@ -1462,6 +1457,7 @@ wss.on(
                 text:
                   "Nur Admins können Bilder im Allgemein-Chat senden."
               });
+
               return;
             }
 
@@ -1474,6 +1470,7 @@ wss.on(
                 text:
                   "Kein Empfänger ausgewählt."
               });
+
               return;
             }
 
@@ -1486,6 +1483,7 @@ wss.on(
                 text:
                   "Das Bild ist zu groß."
               });
+
               return;
             }
 
@@ -1500,6 +1498,7 @@ wss.on(
                 text:
                   "Bildformat wird nicht unterstützt."
               });
+
               return;
             }
 
@@ -1510,8 +1509,7 @@ wss.on(
               extension ===
               "jpeg"
             ) {
-              extension =
-                "jpg";
+              extension = "jpg";
             }
 
             const allowed = [
@@ -1531,6 +1529,7 @@ wss.on(
                 text:
                   "Erlaubt sind PNG, JPG, GIF und WEBP."
               });
+
               return;
             }
 
@@ -1579,8 +1578,7 @@ wss.on(
 
             if (general) {
               const result =
-                await pool.query(
-                  `
+                await pool.query(`
                   INSERT INTO messages
                   (
                     sender,
@@ -1588,7 +1586,8 @@ wss.on(
                     image_url,
                     is_group
                   )
-                  VALUES (
+                  VALUES
+                  (
                     $1,
                     NULL,
                     $2,
@@ -1600,12 +1599,10 @@ wss.on(
                     EXTRACT(
                       EPOCH FROM created_at
                     ) * 1000 AS time
-                  `,
-                  [
-                    socket.username,
-                    imageUrl
-                  ]
-                );
+                `, [
+                  socket.username,
+                  imageUrl
+                ]);
 
               const row =
                 result.rows[0];
@@ -1623,7 +1620,8 @@ wss.on(
                     Number(
                       row.time
                     ),
-                  isAdmin: true
+                  isAdmin:
+                    true
                 }
               });
 
@@ -1631,14 +1629,13 @@ wss.on(
             }
 
             const targetUser =
-              await pool.query(
-                `
+              await pool.query(`
                 SELECT 1
                 FROM users
                 WHERE username = $1
-                `,
-                [target]
-              );
+              `, [
+                target
+              ]);
 
             if (
               !targetUser.rowCount
@@ -1648,12 +1645,12 @@ wss.on(
                 text:
                   "Benutzer nicht gefunden."
               });
+
               return;
             }
 
             const result =
-              await pool.query(
-                `
+              await pool.query(`
                 INSERT INTO messages
                 (
                   sender,
@@ -1662,7 +1659,8 @@ wss.on(
                   image_url,
                   is_group
                 )
-                VALUES (
+                VALUES
+                (
                   $1,
                   $2,
                   NULL,
@@ -1673,13 +1671,11 @@ wss.on(
                   EXTRACT(
                     EPOCH FROM created_at
                   ) * 1000 AS time
-                `,
-                [
-                  socket.username,
-                  target,
-                  imageUrl
-                ]
-              );
+              `, [
+                socket.username,
+                target,
+                imageUrl
+              ]);
 
             const message = {
               type:
@@ -1764,19 +1760,21 @@ wss.on(
 setInterval(
   () => {
     cleanOldGroupMessages()
-      .catch(error =>
-        console.error(
-          "Gruppenchat-Bereinigung:",
-          error.message
-        )
+      .catch(
+        error =>
+          console.error(
+            "Gruppenchat-Bereinigung:",
+            error.message
+          )
       );
 
     cleanResetTokens()
-      .catch(error =>
-        console.error(
-          "Reset-Bereinigung:",
-          error.message
-        )
+      .catch(
+        error =>
+          console.error(
+            "Reset-Bereinigung:",
+            error.message
+          )
       );
   },
   10 * 60 * 1000
@@ -1787,30 +1785,34 @@ setInterval(
 ========================= */
 
 initDatabase()
-  .then(() => {
-    server.listen(
-      PORT,
-      "0.0.0.0",
-      () => {
-        console.log(
-          `🚀 FORTX Server läuft auf Port ${PORT}`
-        );
+  .then(
+    () => {
+      server.listen(
+        PORT,
+        "0.0.0.0",
+        () => {
+          console.log(
+            `🚀 FORTX Server läuft auf Port ${PORT}`
+          );
 
-        console.log(
-          "👑 Admins:",
-          GROUP_ADMINS.join(
-            ", "
-          )
-        );
-      }
-    );
-  })
-  .catch(error => {
-    console.error(
-      "❌ Datenbankfehler:",
-      error
-    );
+          console.log(
+            "👑 Admins:",
+            GROUP_ADMINS.join(
+              ", "
+            )
+          );
+        }
+      );
+    }
+  )
+  .catch(
+    error => {
+      console.error(
+        "❌ Datenbankfehler:",
+        error
+      );
 
-    process.exit(1);
-  });
+      process.exit(1);
+    }
+  );
 ```
