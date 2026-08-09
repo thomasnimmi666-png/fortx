@@ -95,16 +95,9 @@ async function initDatabase() {
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS friends (
-      username TEXT NOT NULL
-        REFERENCES users(username)
-        ON DELETE CASCADE,
-
-      friend_username TEXT NOT NULL
-        REFERENCES users(username)
-        ON DELETE CASCADE,
-
+      username TEXT NOT NULL,
+      friend_username TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
       PRIMARY KEY (username, friend_username)
     )
   `);
@@ -114,49 +107,23 @@ async function initDatabase() {
       id SERIAL PRIMARY KEY,
       sender TEXT NOT NULL,
       receiver TEXT,
-      text TEXT,
-      image_url TEXT,
+      text TEXT NOT NULL,
       is_group BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  /*
-   * Falls die messages-Tabelle bereits aus
-   * einer älteren Version existiert, wird
-   * image_url nachträglich ergänzt.
-   */
-  await pool.query(`
-    ALTER TABLE messages
-    ADD COLUMN IF NOT EXISTS image_url TEXT
-  `);
-
-  /*
-   * Text darf bei einer reinen Bildnachricht
-   * leer sein.
-   */
-  await pool.query(`
-    ALTER TABLE messages
-    ALTER COLUMN text DROP NOT NULL
-  `);
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_resets (
       token_hash TEXT PRIMARY KEY,
-
-      username TEXT NOT NULL
-        REFERENCES users(username)
-        ON DELETE CASCADE,
-
+      username TEXT NOT NULL,
       expires_at TIMESTAMP NOT NULL,
-
       used BOOLEAN DEFAULT FALSE
     )
   `);
 
   console.log("🗄️ Datenbank bereit");
 }
-
 async function ensureAdminContacts(username) {
   const normalized = normalizeUsername(username);
 
